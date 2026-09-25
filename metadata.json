@@ -1,0 +1,6 @@
+{
+  "name": "DNS Polls - Dolomiti NordicSki",
+  "description": "DNS Polls - Pianificatore e calendario riunioni per il team Dolomiti NordicSki con supporto multilingue (Tedesco e Italiano) e sincronizzazione Firestore in tempo reale.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

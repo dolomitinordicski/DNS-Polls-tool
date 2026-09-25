@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  --color-dns-primary: #0D4D5E;
+  --color-dns-deep: #083845;
+  --color-dns-teal: #336979;
+  --color-dns-soft: #8EBDC4;
+  --color-dns-frosted: #E3EEF2;
+  --color-dns-bg: #E5EFF3;
+
+  --font-heading: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-body: 'Roboto', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Roboto', system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  /* Palette Dolomiti NordicSki - Frosted Ice Theme */
+  --dns-primary: #0D4D5E; /* Ottanio Header */
+  --dns-deep: #083845;    /* Blu Petrolio Scuro */
+  --dns-teal: #336979;    /* Ottanio Medio */
+  --dns-soft: #8EBDC4;    /* Accento Soft */
+  --dns-frosted: #E3EEF2; /* Ghiaccio Chiaro (Frosted Ice Canvas) */
+  --dns-bg: #E5EFF3;      /* Frosted Ice App Background */
+  --dns-card-bg: #FFFFFF; /* White Cards */
+
+  /* Tipografia */
+  --font-heading: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-body: 'Roboto', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--dns-bg);
+  color: #0F2D37;
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* Default styling for input fields in light gray */
+input[type="text"],
+input[type="email"],
+input[type="date"],
+textarea,
+select {
+  background-color: #F1F5F9 !important; /* light gray bg-slate-100 */
+  color: #0F172A !important;             /* text-slate-900 */
+  border-color: #CBD5E1 !important;        /* border-slate-300 */
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+textarea::placeholder {
+  color: #64748B !important;             /* placeholder:text-slate-500 */
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="date"]:focus,
+textarea:focus,
+select:focus {
+  background-color: #FFFFFF !important;
+  border-color: #0D4D5E !important;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #E5EFF3;
+}
+::-webkit-scrollbar-thumb {
+  background: #336979;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0D4D5E;
+}
