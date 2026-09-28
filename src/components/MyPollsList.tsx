@@ -92,7 +92,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
   const confirmedPollsCount = polls.filter(p => p.finalizedSlotId).length;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 animate-fade-in font-body">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-body">
       {/* Top Welcome Banner */}
       <div className="bg-white border border-slate-300 rounded-sm p-6 text-slate-800 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-2 max-w-xl">

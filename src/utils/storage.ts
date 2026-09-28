@@ -65,6 +65,15 @@ export function deletePoll(id: string): void {
   }
 }
 
+export function replaceLocalPolls(polls: Poll[]): void {
+  try {
+    const clean = polls.filter(p => p && p.id !== 'demo-1' && p.id !== 'demo-2');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(clean));
+  } catch (e) {
+    console.error('Error replacing localStorage poll cache:', e);
+  }
+}
+
 /**
  * Encodes poll data to UTF-8 base64 string for URL hash sharing
  */
