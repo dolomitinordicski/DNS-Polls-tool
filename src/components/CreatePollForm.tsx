@@ -19,8 +19,15 @@ import {
   Loader2, 
   CheckCircle2, 
   RotateCcw,
-  Lightbulb
+  Lightbulb,
+  Copy
 } from 'lucide-react';
+
+const PROMPT_HELPERS = {
+  it: `Trasforma il testo che ti invio in un prompt pronto per DNS Polls. Restituisci SOLO il prompt finale, senza spiegazioni. Strutturalo così: titolo della riunione; luogo oppure "Online"; breve descrizione/ordine del giorno; tutte le date complete con TUTTE le fasce orarie per ciascun giorno. Usa date esplicite (es. 1 ottobre 2026) e orari nel formato 08:00-09:30. Se più date hanno gli stessi orari, puoi raggrupparle (es. 1, 2, 6 e 7 ottobre: 08:00-09:30, 10:00-11:30, 14:00-15:30). Non inserire organizzatore o email: DNS Polls li compila automaticamente. Testo da trasformare:`,
+  de: `Formatiere den Text, den ich dir sende, als direkt verwendbaren Prompt für DNS Polls. Gib NUR den fertigen Prompt zurück, ohne Erklärungen. Struktur: Titel der Sitzung; Ort oder "Online"; kurze Beschreibung/Tagesordnung; alle vollständigen Termine mit ALLEN Zeitfenstern pro Tag. Verwende explizite Daten (z.B. 1. Oktober 2026) und Uhrzeiten im Format 08:00-09:30. Wenn mehrere Tage dieselben Zeiten haben, dürfen sie gruppiert werden (z.B. 1, 2, 6 und 7 Oktober: 08:00-09:30, 10:00-11:30, 14:00-15:30). Organisator und E-Mail nicht angeben: DNS Polls füllt sie automatisch aus. Zu formatierender Text:`,
+  en: `Convert the text I send you into a prompt ready for DNS Polls. Return ONLY the final prompt, with no explanation. Structure it as: meeting title; location or "Online"; short description/agenda; every full date with ALL time slots for each day. Use explicit dates (e.g. 1 October 2026) and times in the format 08:00-09:30. If several dates have the same times, they may be grouped (e.g. 1, 2, 6 and 7 October: 08:00-09:30, 10:00-11:30, 14:00-15:30). Do not include organizer or email: DNS Polls fills those automatically. Text to convert:`,
+} as const;
 
 interface CreatePollFormProps {
   onPollCreated: (poll: Poll) => void;
@@ -43,6 +50,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
   const [promptSuccessMessage, setPromptSuccessMessage] = useState('');
   const [promptErrorMessage, setPromptErrorMessage] = useState('');
+  const [copiedHelper, setCopiedHelper] = useState<'it' | 'de' | 'en' | null>(null);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -277,6 +285,47 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
                   className="text-[11px] bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 hover:border-dns-primary rounded-sm px-2.5 py-1 text-left transition-colors cursor-pointer"
                 >
                   {example}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Copyable instructions for preparing a DNS Polls prompt with ChatGPT */}
+          <div className="mt-3 rounded-sm border border-slate-200 bg-slate-50 p-3 space-y-2.5">
+            <div>
+              <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#083845]">
+                {currentLang === 'de' ? 'Prompt-Anweisung zum Kopieren' : 'Istruzioni da copiare'}
+              </div>
+              <p className="text-[11px] text-slate-600 mt-0.5">
+                {currentLang === 'de'
+                  ? 'Eine Sprache kopieren, zusammen mit dem Rohtext an ChatGPT senden und den erzeugten DNS-Prompt hier wieder einfügen.'
+                  : 'Copia una lingua, inviala a ChatGPT insieme al testo grezzo e reincolla qui il prompt DNS generato.'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {(['it', 'de', 'en'] as const).map((langCode) => (
+                <button
+                  key={langCode}
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(PROMPT_HELPERS[langCode]);
+                    setCopiedHelper(langCode);
+                    window.setTimeout(() => setCopiedHelper(current => current === langCode ? null : current), 1800);
+                  }}
+                  className="flex items-center justify-between gap-2 bg-white hover:bg-slate-100 border border-slate-300 hover:border-dns-primary rounded-sm px-3 py-2 text-left transition-colors"
+                >
+                  <div>
+                    <div className="text-[11px] font-extrabold text-[#083845] uppercase">
+                      {langCode === 'it' ? 'Italiano' : langCode === 'de' ? 'Deutsch' : 'English'}
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      {copiedHelper === langCode
+                        ? (currentLang === 'de' ? 'Kopiert!' : 'Copiato!')
+                        : (currentLang === 'de' ? 'Anweisung kopieren' : 'Copia istruzione')}
+                    </div>
+                  </div>
+                  <Copy className="w-3.5 h-3.5 text-dns-primary shrink-0" />
                 </button>
               ))}
             </div>
