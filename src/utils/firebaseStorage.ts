@@ -85,44 +85,91 @@ export function subscribeToPollsFromFirestore(
   onStatus?: (status: FirestoreSyncStatus) => void
 ): () => void {
   if (!db || !isFirebaseConfigured) {
+    console.error('[DNS Firestore] Firebase is not configured.');
     onStatus?.('offline');
     onUpdate(getLocalPolls());
     return () => {};
   }
 
   onStatus?.('connecting');
-  let migrationStarted = false;
+  let disposed = false;
 
-  return onSnapshot(
-    collection(db, POLLS_COLLECTION),
-    snapshot => {
-      const remotePolls = snapshot.docs.map(d => d.data() as Poll);
+  const reportError = (stage: string, error: unknown) => {
+    const err = error as { code?: string; message?: string };
+    console.error(`[DNS Firestore] ${stage} failed`, {
+      code: err?.code || 'unknown',
+      message: err?.message || String(error),
+      projectId: 'dns-polls',
+    });
+  };
 
-      if (remotePolls.length === 0 && !migrationStarted) {
-        migrationStarted = true;
-        const cached = getLocalPolls();
+  const bootstrap = async () => {
+    try {
+      const snapshot = await Promise.race([
+        getDocs(collection(db, POLLS_COLLECTION)),
+        new Promise<never>((_, reject) =>
+          window.setTimeout(() => reject(new Error('Initial Firestore read timed out after 8s')), 8000)
+        ),
+      ]);
 
-        if (cached.length > 0 && localStorage.getItem(LEGACY_MIGRATION_KEY) !== 'done') {
-          // Keep the existing layout stable while the legacy cache is uploaded once.
-          onUpdate(sortPolls(cached));
-          void migrateLegacyCacheIfNeeded(remotePolls).catch(error => {
-            console.error('Legacy Firestore migration failed.', error);
-            onStatus?.('offline');
-          });
-          return;
+      if (disposed) return;
+
+      let remotePolls = snapshot.docs.map(d => d.data() as Poll);
+
+      if (remotePolls.length === 0) {
+        try {
+          const migrated = await migrateLegacyCacheIfNeeded(remotePolls);
+          if (migrated) {
+            const afterMigration = await getDocs(collection(db, POLLS_COLLECTION));
+            remotePolls = afterMigration.docs.map(d => d.data() as Poll);
+          }
+        } catch (error) {
+          reportError('legacy migration', error);
         }
       }
 
+      if (disposed) return;
+
       onUpdate(cacheRemotePolls(remotePolls));
       onStatus?.('live');
-      localStorage.setItem(LEGACY_MIGRATION_KEY, 'done');
-    },
-    error => {
-      console.error('Firestore realtime subscription failed.', error);
+      console.info('[DNS Firestore] Initial read succeeded.', {
+        projectId: 'dns-polls',
+        polls: remotePolls.length,
+      });
+    } catch (error) {
+      if (disposed) return;
+      reportError('initial getDocs', error);
       onStatus?.('offline');
       onUpdate(getLocalPolls());
     }
+  };
+
+  void bootstrap();
+
+  const unsubscribe = onSnapshot(
+    collection(db, POLLS_COLLECTION),
+    snapshot => {
+      if (disposed) return;
+      const remotePolls = snapshot.docs.map(d => d.data() as Poll);
+      onUpdate(cacheRemotePolls(remotePolls));
+      onStatus?.('live');
+      console.info('[DNS Firestore] Realtime snapshot received.', {
+        projectId: 'dns-polls',
+        polls: remotePolls.length,
+      });
+    },
+    error => {
+      if (disposed) return;
+      reportError('realtime listener', error);
+      // Do not blank or replace a successful bootstrap result just because
+      // realtime transport is temporarily unavailable.
+    }
   );
+
+  return () => {
+    disposed = true;
+    unsubscribe();
+  };
 }
 
 export const subscribeToPolls = subscribeToPollsFromFirestore;
