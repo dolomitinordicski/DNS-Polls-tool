@@ -199,7 +199,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in space-y-6 font-body">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6 font-body">
       {/* Autocomplete Datalists */}
       <datalist id="organizers-list">
         {autocomplete.organizers.map((item, idx) => (
@@ -302,13 +302,13 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
             <div className="flex-1">
               {promptSuccessMessage && (
-                <div className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-sm animate-fade-in font-medium">
+                <div className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-sm font-medium">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>{promptSuccessMessage}</span>
                 </div>
               )}
               {promptErrorMessage && (
-                <div className="flex items-center gap-1.5 text-xs text-red-800 bg-red-50 border border-red-300 px-3 py-1.5 rounded-sm animate-fade-in font-medium">
+                <div className="flex items-center gap-1.5 text-xs text-red-800 bg-red-50 border border-red-300 px-3 py-1.5 rounded-sm font-medium">
                   <span>⚠️</span>
                   <span>{promptErrorMessage}</span>
                 </div>
