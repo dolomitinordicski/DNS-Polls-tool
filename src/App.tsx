@@ -5,8 +5,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Poll } from './types';
-import { getLocalPolls, decodePollFromHash, savePoll } from './utils/storage';
-import { subscribeToPollsFromFirestore, getPollFromFirestore } from './utils/firebaseStorage';
+import { decodePollFromHash, savePoll } from './utils/storage';
+import { subscribeToPollsFromFirestore, getPollFromFirestore, FirestoreSyncStatus } from './utils/firebaseStorage';
 import { isFirebaseConfigured } from './lib/firebase';
 import { Language, t } from './utils/i18n';
 import { Header } from './components/Header';
@@ -20,25 +20,27 @@ import dnsLogoNegativ from './assets/dns-logo-negativ.png';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar'>('list');
-  const [polls, setPolls] = useState<Poll[]>(() => getLocalPolls());
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [hasInitialPolls, setHasInitialPolls] = useState(!isFirebaseConfigured);
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
   const [appShareModalOpen, setAppShareModalOpen] = useState(false);
-  const [isFirestoreLive, setIsFirestoreLive] = useState(isFirebaseConfigured);
+  const [syncStatus, setSyncStatus] = useState<FirestoreSyncStatus>(isFirebaseConfigured ? 'connecting' : 'offline');
   const [currentLang, setCurrentLang] = useState<Language>('de');
   const [isInviteeLink, setIsInviteeLink] = useState(false);
 
   // Real-time Firestore Subscription & Initial URL checking
   useEffect(() => {
-    // Subscribe to real-time updates from Firestore. Local data is already
-    // loaded synchronously in the initial state to avoid a visible empty-state flash.
-    const unsubscribe = subscribeToPollsFromFirestore((updatedPolls) => {
-      setPolls(current => (
-        JSON.stringify(current) === JSON.stringify(updatedPolls)
-          ? current
-          : updatedPolls
-      ));
-      setIsFirestoreLive(isFirebaseConfigured);
-    });
+    const unsubscribe = subscribeToPollsFromFirestore(
+      (updatedPolls) => {
+        setPolls(current => (
+          JSON.stringify(current) === JSON.stringify(updatedPolls)
+            ? current
+            : updatedPolls
+        ));
+        setHasInitialPolls(true);
+      },
+      (status) => setSyncStatus(status)
+    );
 
     // 2. Check if URL param or hash contains poll data
     const checkUrlParams = async () => {
@@ -80,10 +82,6 @@ export default function App() {
         }
       }
 
-      if (!targetPoll && pollId) {
-        targetPoll = getLocalPolls().find(p => p.id === pollId) || null;
-      }
-
       if (targetPoll) {
         savePoll(targetPoll);
         setActivePoll(targetPoll);
@@ -109,12 +107,7 @@ export default function App() {
   }, [polls]);
 
   const refreshPollsList = () => {
-    const localPolls = getLocalPolls();
-    setPolls(current => (
-      JSON.stringify(current) === JSON.stringify(localPolls)
-        ? current
-        : localPolls
-    ));
+    // Firestore listeners are authoritative and will refresh the list automatically.
   };
 
   const handleSelectPoll = (poll: Poll) => {
@@ -148,7 +141,7 @@ export default function App() {
         onNavigate={handleNavigate}
         activePollTitle={activePoll?.title}
         onQuickShareApp={() => setAppShareModalOpen(true)}
-        isFirestoreConnected={isFirestoreLive}
+        isFirestoreConnected={syncStatus === 'live'}
         currentLang={currentLang}
         onLanguageChange={setCurrentLang}
         isInviteeMode={isInviteeLink && currentView === 'view'}
@@ -156,7 +149,21 @@ export default function App() {
 
       {/* Main Content Area on Frosted Ice */}
       <main className="flex-1 pb-16">
-        {currentView === 'list' && (
+        {currentView === 'list' && !hasInitialPolls && (
+          <div className="max-w-6xl mx-auto px-4 py-8">
+            <div className="min-h-[420px] bg-white border border-slate-300 rounded-sm p-6 shadow-xs">
+              <div className="h-5 w-40 bg-slate-200 rounded-sm mb-5" />
+              <div className="h-10 w-72 max-w-full bg-slate-100 rounded-sm mb-8" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="h-28 bg-slate-100 rounded-sm border border-slate-200" />
+                <div className="h-28 bg-slate-100 rounded-sm border border-slate-200" />
+                <div className="h-28 bg-slate-100 rounded-sm border border-slate-200" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {currentView === 'list' && hasInitialPolls && (
           <MyPollsList
             polls={polls}
             onSelectPoll={handleSelectPoll}
