@@ -16,7 +16,6 @@ import { PollView } from './components/PollView';
 import { PollCalendarView } from './components/PollCalendarView';
 import { ShareModal } from './components/ShareModal';
 import { Calendar as CalendarIcon, ShieldCheck } from 'lucide-react';
-import dnsLogoNegativ from './assets/dns-logo-negativ.png';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar'>('list');
@@ -239,11 +238,19 @@ export default function App() {
       <footer className="bg-dns-primary border-t border-dns-teal/50 py-6 px-4 text-center text-xs text-slate-200 space-y-3 font-body">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <img 
-              src={dnsLogoNegativ} 
-              alt="Dolomiti NordicSki Logo" 
-              className="h-[37px] w-auto object-contain" 
-            />
+            <span className="w-[128px] h-[37px] shrink-0 flex items-center overflow-hidden">
+              <img
+                src="./dns-logo-negativ.png"
+                alt=""
+                aria-hidden="true"
+                width="128"
+                height="37"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.visibility = 'hidden';
+                }}
+              />
+            </span>
             <span className="font-heading font-bold text-white text-sm">DNS Polls</span>
             <span className="text-[10px] bg-dns-teal/40 px-2 py-0.5 rounded-sm text-slate-200 font-mono">
               Dolomiti NordicSki

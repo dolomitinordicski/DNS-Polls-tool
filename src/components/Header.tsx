@@ -1,8 +1,6 @@
 import React from 'react';
 import { Calendar as CalendarIcon, PlusCircle, List, Share2, Globe } from 'lucide-react';
 import { Language, t } from '../utils/i18n';
-import dnsLogoNegativ from '../assets/dns-logo-negativ.png';
-import dnsLogoFarbe from '../assets/dns-logo-farbe.png';
 
 interface HeaderProps {
   currentView: 'create' | 'list' | 'view' | 'calendar';
@@ -34,13 +32,16 @@ export const Header: React.FC<HeaderProps> = ({
           className={`flex items-center gap-3 ${!isInviteeMode ? 'cursor-pointer group hover:opacity-95' : ''} transition-opacity`}
         >
           {/* Official DNS Logo */}
-          <div className="group-hover:scale-102 transition-transform flex items-center justify-center shrink-0">
-            <img 
-              src={dnsLogoNegativ} 
-              alt="Dolomiti NordicSki Official Logo" 
-              className="h-[42px] w-auto object-contain"
+          <div className="w-[145px] h-[42px] flex items-center justify-center shrink-0 overflow-hidden">
+            <img
+              src="./dns-logo-negativ.png"
+              alt=""
+              aria-hidden="true"
+              width="145"
+              height="42"
+              className="w-full h-full object-contain"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = dnsLogoFarbe;
+                e.currentTarget.style.visibility = 'hidden';
               }}
             />
           </div>
