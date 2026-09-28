@@ -3,6 +3,7 @@ import { Poll, TimeSlot } from '../types';
 import { savePollToFirestore } from '../utils/firebaseStorage';
 import { Language, t } from '../utils/i18n';
 import { getAutocompleteData, saveAutocompleteEntry } from '../utils/autocompleteStore';
+import { parsePollPrompt } from '../utils/localPromptParser';
 import { 
   Calendar, 
   Clock, 
@@ -69,7 +70,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
     return d.toISOString().split('T')[0];
   }
 
-  // Handle generating poll details from text prompt
+  // Parse poll details locally in the browser — no external AI/API calls.
   const handleGenerateFromPrompt = async (textToUse?: string) => {
     const queryPrompt = (textToUse !== undefined ? textToUse : promptText).trim();
     if (!queryPrompt) {
@@ -82,44 +83,25 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
     setPromptSuccessMessage('');
 
     try {
-      const response = await fetch('/api/ai/parse-poll-prompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: queryPrompt, lang: currentLang })
-      });
+      const data = parsePollPrompt(queryPrompt, currentLang);
 
-      if (!response.ok) {
-        throw new Error('API server response was not ok');
-      }
-
-      const resData = await response.json();
-      if (!resData.success || !resData.data) {
-        throw new Error(resData.error || 'Failed to extract data');
-      }
-
-      const data = resData.data;
-
-      // Populate form state
       if (data.title) setTitle(data.title);
       if (data.description) setDescription(data.description);
       if (data.location) setLocation(data.location);
-      if (data.organizerName && !organizerName) setOrganizerName(data.organizerName);
-      if (typeof data.allowMaybe === 'boolean') setAllowMaybe(data.allowMaybe);
 
-      // Populate slots
       if (Array.isArray(data.slots) && data.slots.length > 0) {
-        const newSlots: TimeSlot[] = data.slots.map((s: any, idx: number) => ({
-          id: `slot-ai-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
-          date: s.date,
-          time: s.time || (currentLang === 'de' ? 'Ganztägig' : 'Tutto il giorno')
+        const newSlots: TimeSlot[] = data.slots.map((slot, idx) => ({
+          id: `slot-local-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+          date: slot.date,
+          time: slot.time
         }));
         setSlots(newSlots);
       }
 
       setPromptSuccessMessage(t('aiPromptSuccess', currentLang));
       setError('');
-    } catch (err: any) {
-      console.error('Error generating from prompt:', err);
+    } catch (err) {
+      console.error('Local prompt parser could not extract poll data:', err);
       setPromptErrorMessage(t('aiPromptError', currentLang));
     } finally {
       setIsGeneratingPrompt(false);
