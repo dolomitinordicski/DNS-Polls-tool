@@ -163,42 +163,90 @@ export async function generateTinyUrl(urlToShorten: string): Promise<string> {
 }
 
 /**
- * Export finalized event to .ics iCalendar file format
+ * Export finalized event to .ics iCalendar file format.
+ * Supports physical meetings and optional videoconference URLs.
  */
 export function generateICalFile(poll: Poll, slotId: string): void {
   const slot = poll.slots.find(s => s.id === slotId);
   if (!slot) return;
 
-  const startDateStr = slot.date.replace(/-/g, '');
-  let timeStr = '090000';
-  if (slot.time) {
-    const match = slot.time.match(/(\d{2}):(\d{2})/);
-    if (match) {
-      timeStr = `${match[1]}${match[2]}00`;
-    }
-  }
+  const escapeICalText = (value: string) =>
+    value
+      .replace(/\\/g, '\\\\')
+      .replace(/\r?\n/g, '\\n')
+      .replace(/,/g, '\\,')
+      .replace(/;/g, '\\;');
 
-  const icsContent = [
+  const normalizeConferenceUrl = (value?: string) => {
+    const raw = (value || '').trim();
+    if (!raw) return '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    return 'https://' + raw;
+  };
+
+  const dateCompact = slot.date.replace(/-/g, '');
+  const rangeMatch = (slot.time || '').match(/(\d{1,2}):(\d{2})\s*(?:-|–|—)\s*(\d{1,2}):(\d{2})/);
+  const isAllDay = !rangeMatch || /ganzt|tutto il giorno|all day/i.test(slot.time || '');
+
+  const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Dolomiti NordicSki//Dolomiti Polls//IT',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'PRODID:-//Dolomiti NordicSki//DNS Polls//DE',
     'BEGIN:VEVENT',
-    `SUMMARY:${poll.title}`,
-    `DESCRIPTION:${poll.description || ''} (Organizzato da ${poll.organizerName})`,
-    `LOCATION:${poll.location || 'Online'}`,
-    `DTSTART:${startDateStr}T${timeStr}`,
-    `DTEND:${startDateStr}T${timeStr}`,
-    'STATUS:CONFIRMED',
-    'END:VEVENT',
-    'END:VCALENDAR'
-  ].join('\r\n');
+    'UID:' + poll.id + '-' + slot.id + '@dolomitinordicski.com',
+    'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z'),
+    'SUMMARY:' + escapeICalText(poll.title),
+  ];
 
+  if (isAllDay) {
+    const nextDay = new Date(slot.date + 'T12:00:00');
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextCompact =
+      nextDay.getFullYear().toString() +
+      String(nextDay.getMonth() + 1).padStart(2, '0') +
+      String(nextDay.getDate()).padStart(2, '0');
+
+    lines.push('DTSTART;VALUE=DATE:' + dateCompact);
+    lines.push('DTEND;VALUE=DATE:' + nextCompact);
+  } else {
+    const startTime = String(rangeMatch[1]).padStart(2, '0') + rangeMatch[2] + '00';
+    const endTime = String(rangeMatch[3]).padStart(2, '0') + rangeMatch[4] + '00';
+    lines.push('DTSTART;TZID=Europe/Rome:' + dateCompact + 'T' + startTime);
+    lines.push('DTEND;TZID=Europe/Rome:' + dateCompact + 'T' + endTime);
+  }
+
+  const conferenceUrl = normalizeConferenceUrl(poll.conferenceUrl);
+  const isOnline = /online|teams|zoom|meet|videokonferenz|video.?conference/i.test(poll.location || '') || Boolean(conferenceUrl);
+  const location = isOnline ? 'Online' : (poll.location || '');
+
+  if (location) {
+    lines.push('LOCATION:' + escapeICalText(location));
+  }
+
+  const descriptionParts = [];
+  if (poll.description) descriptionParts.push(poll.description);
+  descriptionParts.push('Organisiert von ' + poll.organizerName);
+  if (conferenceUrl) {
+    descriptionParts.push('Videokonferenz: ' + conferenceUrl);
+    lines.push('URL:' + conferenceUrl);
+  }
+
+  lines.push('DESCRIPTION:' + escapeICalText(descriptionParts.join('\n')));
+  lines.push('STATUS:CONFIRMED');
+  lines.push('END:VEVENT');
+  lines.push('END:VCALENDAR');
+
+  const icsContent = lines.join('\r\n');
   const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.setAttribute('download', `${poll.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`);
+  link.setAttribute('download', poll.title.replace(/[^a-zA-Z0-9_-]/g, '_') + '.ics');
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
+
