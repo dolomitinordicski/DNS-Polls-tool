@@ -25,6 +25,7 @@ export interface Poll {
   location?: string;
   organizerName: string;
   organizerEmail?: string;
+  conferenceUrl?: string; // Optional videoconference URL for the confirmed calendar event
   allowMaybe: boolean;
   slots: TimeSlot[];
   participants: Participant[];

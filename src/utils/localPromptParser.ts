@@ -69,28 +69,25 @@ function formatTime(hour: string, minute?: string): string {
   return pad(Number(hour)) + ':' + (minute || '00');
 }
 
-function extractTime(segment: string, lang: Language): string {
-  const range = segment.match(
-    /(?:von\s+|dalle(?:\s+ore)?\s+|da\s+)?(\d{1,2})(?::(\d{2}))?\s*(?:-|–|—|bis|alle|a)\s*(\d{1,2})(?::(\d{2}))?/i
+function extractTimeRanges(segment: string, lang: Language): string[] {
+  const rangeRegex = /(?:von\s+|dalle(?:\s+ore)?\s+|da\s+)?(\d{1,2})(?::(\d{2}))?\s*(?:-|–|—|bis|alle|a)\s*(\d{1,2})(?::(\d{2}))?/gi;
+  const ranges = Array.from(segment.matchAll(rangeRegex)).map(match =>
+    formatTime(match[1], match[2]) + ' - ' + formatTime(match[3], match[4])
   );
 
-  if (range) {
-    return formatTime(range[1], range[2]) + ' - ' + formatTime(range[3], range[4]);
-  }
+  if (ranges.length > 0) return ranges;
 
   const single = segment.match(/(?:um|alle|ore)\s+(\d{1,2})(?::(\d{2}))?/i);
-  if (single) {
-    return formatTime(single[1], single[2]);
-  }
+  if (single) return [formatTime(single[1], single[2])];
 
   if (/ganzt[aä]gig|tutto\s+il\s+giorno|all\s*day/i.test(segment)) {
-    return lang === 'de' ? 'Ganztägig' : 'Tutto il giorno';
+    return [lang === 'de' ? 'Ganztägig' : 'Tutto il giorno'];
   }
 
-  return lang === 'de' ? 'Ganztägig' : 'Tutto il giorno';
+  return [lang === 'de' ? 'Ganztägig' : 'Tutto il giorno'];
 }
 
-function cleanTitle(raw: string): string {
+function cleanTitle(raw: string, lang: Language): string {
   let title = raw
     .replace(/^[\s\-–—:;,.]+|[\s\-–—:;,.]+$/g, '')
     .replace(/^erstelle\s+(?:bitte\s+)?(?:eine\s+)?umfrage\s+(?:für|zum|zur)\s+(?:das|den|die)?\s*/i, '')
@@ -101,7 +98,7 @@ function cleanTitle(raw: string): string {
   const sentenceBreak = title.search(/[.!?]/);
   if (sentenceBreak > 0) title = title.slice(0, sentenceBreak).trim();
 
-  return title || 'Neue Umfrage';
+  return title || (lang === 'de' ? 'Neue Umfrage' : 'Nuovo sondaggio');
 }
 
 function detectLocation(text: string): string | undefined {
@@ -114,37 +111,84 @@ function detectLocation(text: string): string | undefined {
   return locationMatch?.[1]?.trim();
 }
 
-function parseExplicitDates(text: string, lang: Language): ParsedPromptSlot[] {
-  const monthNames = Object.keys(MONTHS)
-    .sort((a, b) => b.length - a.length)
-    .join('|');
+function extractDescription(text: string): string | undefined {
+  const marker = text.match(/(?:beschreibung|tagesordnung|ziel\s+des\s+termins|agenda|descrizione|ordine\s+del\s+giorno|obiettivo(?:\s+dell['’]incontro)?)[\s:.-]*/i);
+  if (!marker || marker.index === undefined) return undefined;
 
+  const description = text.slice(marker.index + marker[0].length)
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s:;,.\-–—]+|[\s:;,.\-–—]+$/g, '')
+    .trim();
+
+  return description || undefined;
+}
+
+function parseGroupedDates(text: string, lang: Language): ParsedPromptSlot[] {
+  const monthNames = Object.keys(MONTHS).sort((a, b) => b.length - a.length).join('|');
+  const groupRegex = new RegExp(
+    '\\b((?:\\d{1,2}(?:\\.|º|°)?\\s*(?:,|und|e|and)\\s*)+\\d{1,2}(?:\\.|º|°)?)\\s*(' + monthNames + ')(?:\\s+(\\d{4}))?',
+    'gi'
+  );
+
+  const groups = Array.from(text.matchAll(groupRegex));
+  if (groups.length === 0) return [];
+
+  const slots: ParsedPromptSlot[] = [];
+
+  groups.forEach((match, index) => {
+    const days = Array.from(match[1].matchAll(/\d{1,2}/g)).map(dayMatch => Number(dayMatch[0]));
+    const month = MONTHS[normalizeWord(match[2])];
+    const year = match[3] ? Number(match[3]) : undefined;
+    const start = (match.index || 0) + match[0].length;
+    const end = index + 1 < groups.length ? (groups[index + 1].index || text.length) : text.length;
+    const segment = text.slice(start, end);
+    const times = extractTimeRanges(segment, lang);
+
+    days.forEach(day => {
+      times.forEach(time => {
+        slots.push({
+          date: toDateString(day, month, year),
+          time,
+        });
+      });
+    });
+  });
+
+  return slots;
+}
+
+function parseExplicitDates(text: string, lang: Language): ParsedPromptSlot[] {
+  const monthNames = Object.keys(MONTHS).sort((a, b) => b.length - a.length).join('|');
   const dateRegex = new RegExp(
     '\\b(\\d{1,2})(?:\\.|º|°)?\\s*(' + monthNames + ')(?:\\s+(\\d{4}))?',
     'gi'
   );
 
   const matches = Array.from(text.matchAll(dateRegex));
-  return matches.map((match, index) => {
+  const slots: ParsedPromptSlot[] = [];
+
+  matches.forEach((match, index) => {
     const day = Number(match[1]);
     const month = MONTHS[normalizeWord(match[2])];
     const year = match[3] ? Number(match[3]) : undefined;
-    const start = match.index || 0;
+    const start = (match.index || 0) + match[0].length;
     const end = index + 1 < matches.length ? (matches[index + 1].index || text.length) : text.length;
-    const segment = text.slice(start + match[0].length, end);
+    const segment = text.slice(start, end);
+    const times = extractTimeRanges(segment, lang);
 
-    return {
-      date: toDateString(day, month, year),
-      time: extractTime(segment, lang),
-    };
-  }).filter(slot => Boolean(slot.date));
+    times.forEach(time => {
+      slots.push({
+        date: toDateString(day, month, year),
+        time,
+      });
+    });
+  });
+
+  return slots;
 }
 
 function parseRelativeWeekdays(text: string, lang: Language): ParsedPromptSlot[] {
-  const weekdayNames = Object.keys(WEEKDAYS)
-    .sort((a, b) => b.length - a.length)
-    .join('|');
-
+  const weekdayNames = Object.keys(WEEKDAYS).sort((a, b) => b.length - a.length).join('|');
   const weekdayRegex = new RegExp(
     '\\b(?:(?:nächsten?|kommenden?|prossim[oa]|next)\\s+)?(' + weekdayNames + ')\\b',
     'gi'
@@ -155,8 +199,9 @@ function parseRelativeWeekdays(text: string, lang: Language): ParsedPromptSlot[]
 
   const today = new Date();
   let cursor = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const slots: ParsedPromptSlot[] = [];
 
-  return matches.map((match, index) => {
+  matches.forEach((match, index) => {
     const targetDow = WEEKDAYS[normalizeWord(match[1])];
     let diff = (targetDow - cursor.getDay() + 7) % 7;
     if (diff === 0) diff = 7;
@@ -165,30 +210,37 @@ function parseRelativeWeekdays(text: string, lang: Language): ParsedPromptSlot[]
     date.setDate(cursor.getDate() + diff);
     cursor = date;
 
-    const start = match.index || 0;
+    const start = (match.index || 0) + match[0].length;
     const end = index + 1 < matches.length ? (matches[index + 1].index || text.length) : text.length;
-    const segment = text.slice(start + match[0].length, end);
+    const segment = text.slice(start, end);
+    const times = extractTimeRanges(segment, lang);
 
-    return {
-      date: date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()),
-      time: extractTime(segment, lang),
-    };
+    times.forEach(time => {
+      slots.push({
+        date: date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()),
+        time,
+      });
+    });
   });
+
+  return slots;
 }
 
 export function parsePollPrompt(text: string, lang: Language): ParsedPollPrompt {
   const input = text.trim();
   if (!input) throw new Error('EMPTY_PROMPT');
 
-  let slots = parseExplicitDates(input, lang);
+  let slots = parseGroupedDates(input, lang);
+  if (slots.length === 0) slots = parseExplicitDates(input, lang);
   if (slots.length === 0) slots = parseRelativeWeekdays(input, lang);
   if (slots.length === 0) throw new Error('NO_DATES_FOUND');
 
-  const firstDateIndex = input.search(/\b\d{1,2}(?:\.|º|°)?\s*[A-Za-zÀ-ÿÄÖÜäöüß]+|\b(?:nächsten?|kommenden?|prossim[oa]|next)\s+[A-Za-zÀ-ÿÄÖÜäöüß]+/i);
+  const firstDateIndex = input.search(/\b(?:\d{1,2}(?:\.|º|°)?\s*(?:,|und|e|and)\s*)*\d{1,2}(?:\.|º|°)?\s*[A-Za-zÀ-ÿÄÖÜäöüß]+|\b(?:nächsten?|kommenden?|prossim[oa]|next)\s+[A-Za-zÀ-ÿÄÖÜäöüß]+/i);
   const titleSource = firstDateIndex > 0 ? input.slice(0, firstDateIndex) : input;
 
   return {
-    title: cleanTitle(titleSource),
+    title: cleanTitle(titleSource, lang),
+    description: extractDescription(input),
     location: detectLocation(input),
     slots,
   };

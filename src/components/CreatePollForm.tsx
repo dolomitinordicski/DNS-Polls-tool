@@ -48,8 +48,8 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [location, setLocation] = useState('');
-  const [organizerName, setOrganizerName] = useState('');
-  const [organizerEmail, setOrganizerEmail] = useState('');
+  const [organizerName, setOrganizerName] = useState('Dolomiti NordicSki');
+  const [organizerEmail, setOrganizerEmail] = useState('management@dolomitinordicski.com');
   const [allowMaybe, setAllowMaybe] = useState(true);
 
   // Dates and slots state
@@ -88,6 +88,8 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
       if (data.title) setTitle(data.title);
       if (data.description) setDescription(data.description);
       if (data.location) setLocation(data.location);
+      setOrganizerName('Dolomiti NordicSki');
+      setOrganizerEmail('management@dolomitinordicski.com');
 
       if (Array.isArray(data.slots) && data.slots.length > 0) {
         const newSlots: TimeSlot[] = data.slots.map((slot, idx) => ({
