@@ -1,25 +1,54 @@
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  setDoc,
+} from 'firebase/firestore';
 import { Poll, Participant, VoteStatus } from '../types';
-import { getLocalPolls, savePoll as saveLocalPoll, deletePoll as deleteLocalPoll, getPollShareUrl as getStorageShareUrl } from './storage';
+import { db, isFirebaseConfigured } from '../lib/firebase';
+import {
+  getLocalPolls,
+  savePoll as saveLocalPoll,
+  deletePoll as deleteLocalPoll,
+  getPollShareUrl as getStorageShareUrl
+} from './storage';
+
+const POLLS_COLLECTION = 'polls';
 
 export function getPollShareUrl(poll: Poll): string {
   return getStorageShareUrl(poll);
 }
 
+function toFirestorePoll(poll: Poll): Poll {
+  // Firestore rejects undefined values. JSON serialization also guarantees
+  // that we only send plain serializable data.
+  return JSON.parse(JSON.stringify(poll)) as Poll;
+}
+
 function mergeParticipants(p1: Participant[] = [], p2: Participant[] = []): Participant[] {
   const map = new Map<string, Participant>();
+
   p1.forEach(p => map.set(p.id, p));
   p2.forEach(p => {
     const existing = map.get(p.id);
     if (!existing) {
       map.set(p.id, p);
-    } else {
-      const pTime = p.updatedAt || '';
-      const exTime = existing.updatedAt || '';
-      if (pTime > exTime || Object.keys(p.votes || {}).length > Object.keys(existing.votes || {}).length) {
-        map.set(p.id, p);
-      }
+      return;
+    }
+
+    const pTime = p.updatedAt || '';
+    const existingTime = existing.updatedAt || '';
+    if (
+      pTime > existingTime ||
+      Object.keys(p.votes || {}).length > Object.keys(existing.votes || {}).length
+    ) {
+      map.set(p.id, p);
     }
   });
+
   return Array.from(map.values());
 }
 
@@ -27,117 +56,159 @@ function mergeLocalAndRemotePolls(remotePolls: Poll[]): Poll[] {
   const localPolls = getLocalPolls();
   const pollMap = new Map<string, Poll>();
 
-  remotePolls.forEach(p => pollMap.set(p.id, p));
+  remotePolls.forEach(remote => {
+    pollMap.set(remote.id, remote);
+    saveLocalPoll(remote);
+  });
 
   localPolls.forEach(local => {
     const remote = pollMap.get(local.id);
+
     if (!remote) {
       pollMap.set(local.id, local);
-    } else {
-      const mergedParticipants = mergeParticipants(remote.participants || [], local.participants || []);
-      const localTime = local.updatedAt || local.createdAt || '';
-      const remoteTime = remote.updatedAt || remote.createdAt || '';
-      const isLocalNewer = localTime >= remoteTime;
-
-      const mergedPoll: Poll = {
-        ...(isLocalNewer ? local : remote),
-        participants: mergedParticipants,
-        slots: isLocalNewer ? local.slots : (remote.slots || local.slots)
-      };
-      pollMap.set(local.id, mergedPoll);
-      saveLocalPoll(mergedPoll);
+      return;
     }
+
+    const mergedParticipants = mergeParticipants(remote.participants || [], local.participants || []);
+    const localTime = local.updatedAt || local.createdAt || '';
+    const remoteTime = remote.updatedAt || remote.createdAt || '';
+    const isLocalNewer = localTime > remoteTime;
+
+    const mergedPoll: Poll = {
+      ...(isLocalNewer ? local : remote),
+      participants: mergedParticipants,
+      slots: isLocalNewer ? local.slots : (remote.slots || local.slots)
+    };
+
+    pollMap.set(local.id, mergedPoll);
+    saveLocalPoll(mergedPoll);
   });
 
-  return Array.from(pollMap.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return Array.from(pollMap.values()).sort((a, b) =>
+    (b.createdAt || '').localeCompare(a.createdAt || '')
+  );
+}
+
+async function migrateLocalPollsToFirestore(remotePolls: Poll[]): Promise<void> {
+  if (!db) return;
+
+  const remoteMap = new Map(remotePolls.map(p => [p.id, p]));
+  const localPolls = getLocalPolls();
+
+  await Promise.all(
+    localPolls.map(async local => {
+      const remote = remoteMap.get(local.id);
+      const localTime = local.updatedAt || local.createdAt || '';
+      const remoteTime = remote?.updatedAt || remote?.createdAt || '';
+
+      if (!remote || localTime > remoteTime) {
+        await setDoc(
+          doc(db, POLLS_COLLECTION, local.id),
+          toFirestorePoll(local),
+          { merge: true }
+        );
+      }
+    })
+  );
 }
 
 export async function fetchPollsFromApi(): Promise<Poll[]> {
+  // Kept for compatibility with older imports. Firestore is now the backend.
+  if (!db) return getLocalPolls();
+
   try {
-    const response = await fetch('/api/polls');
-    if (response.ok) {
-      const remotePolls = await response.json();
-      return mergeLocalAndRemotePolls(remotePolls);
-    }
-  } catch (err) {
-    // Local fallback
+    const snapshot = await getDocs(collection(db, POLLS_COLLECTION));
+    const remotePolls = snapshot.docs.map(d => d.data() as Poll);
+    return mergeLocalAndRemotePolls(remotePolls);
+  } catch (error) {
+    console.warn('Firestore fetch failed; using local cache.', error);
+    return getLocalPolls();
   }
-  return getLocalPolls();
 }
 
 /**
-  Subscribes to polls via backend API with fallback to local storage
-*/
+ * Real-time subscription to the shared Firestore polls collection.
+ * Falls back to localStorage when Firebase is not configured or unavailable.
+ */
 export function subscribeToPollsFromFirestore(onUpdate: (polls: Poll[]) => void): () => void {
-  let active = true;
+  if (!db || !isFirebaseConfigured) {
+    onUpdate(getLocalPolls());
+    return () => {};
+  }
 
-  // App.tsx already loads the local snapshot synchronously on mount.
-  // Keep the last serialized value so the 3-second fallback poll does not
-  // force a full React render when nothing actually changed.
-  let lastSnapshot = JSON.stringify(getLocalPolls());
+  let didMigrateLocal = false;
 
-  const pollApi = async () => {
-    if (!active) return;
+  const unsubscribe = onSnapshot(
+    collection(db, POLLS_COLLECTION),
+    snapshot => {
+      const remotePolls = snapshot.docs.map(d => d.data() as Poll);
+      const mergedPolls = mergeLocalAndRemotePolls(remotePolls);
+      onUpdate(mergedPolls);
 
-    const merged = await fetchPollsFromApi();
-    const nextSnapshot = JSON.stringify(merged);
-
-    if (active && nextSnapshot !== lastSnapshot) {
-      lastSnapshot = nextSnapshot;
-      onUpdate(merged);
+      if (!didMigrateLocal) {
+        didMigrateLocal = true;
+        void migrateLocalPollsToFirestore(remotePolls).catch(error => {
+          console.warn('Local-to-Firestore migration failed.', error);
+        });
+      }
+    },
+    error => {
+      console.error('Firestore realtime subscription failed.', error);
+      onUpdate(getLocalPolls());
     }
-  };
+  );
 
-  pollApi();
-  const intervalId = setInterval(pollApi, 3000);
-
-  return () => {
-    active = false;
-    clearInterval(intervalId);
-  };
+  return unsubscribe;
 }
 
 export const subscribeToPolls = subscribeToPollsFromFirestore;
 
 export async function getPollFromFirestore(pollId: string): Promise<Poll | null> {
-  try {
-    const response = await fetch(`/api/polls/${pollId}`);
-    if (response.ok) {
-      const poll = await response.json();
-      if (poll) {
-        saveLocalPoll(poll);
-        return poll;
-      }
-    }
-  } catch (err) {
-    // Local fallback
+  if (!db || !isFirebaseConfigured) {
+    return getLocalPolls().find(p => p.id === pollId) || null;
   }
+
+  try {
+    const snapshot = await getDoc(doc(db, POLLS_COLLECTION, pollId));
+
+    if (snapshot.exists()) {
+      const poll = snapshot.data() as Poll;
+      saveLocalPoll(poll);
+      return poll;
+    }
+  } catch (error) {
+    console.warn('Firestore poll fetch failed; using local cache.', error);
+  }
+
   return getLocalPolls().find(p => p.id === pollId) || null;
 }
 
-export function subscribeToPoll(pollId: string, onUpdate: (poll: Poll | null) => void): () => void {
-  let active = true;
-  let lastSnapshot: string | undefined;
+export function subscribeToPoll(
+  pollId: string,
+  onUpdate: (poll: Poll | null) => void
+): () => void {
+  if (!db || !isFirebaseConfigured) {
+    onUpdate(getLocalPolls().find(p => p.id === pollId) || null);
+    return () => {};
+  }
 
-  const pollApi = async () => {
-    if (!active) return;
+  return onSnapshot(
+    doc(db, POLLS_COLLECTION, pollId),
+    snapshot => {
+      if (!snapshot.exists()) {
+        onUpdate(null);
+        return;
+      }
 
-    const poll = await getPollFromFirestore(pollId);
-    const nextSnapshot = JSON.stringify(poll);
-
-    if (active && nextSnapshot !== lastSnapshot) {
-      lastSnapshot = nextSnapshot;
+      const poll = snapshot.data() as Poll;
+      saveLocalPoll(poll);
       onUpdate(poll);
+    },
+    error => {
+      console.error('Firestore poll subscription failed.', error);
+      onUpdate(getLocalPolls().find(p => p.id === pollId) || null);
     }
-  };
-
-  pollApi();
-  const intervalId = setInterval(pollApi, 3000);
-
-  return () => {
-    active = false;
-    clearInterval(intervalId);
-  };
+  );
 }
 
 export async function savePollToFirestore(poll: Poll): Promise<void> {
@@ -148,27 +219,30 @@ export async function savePollToFirestore(poll: Poll): Promise<void> {
 
   saveLocalPoll(updatedPoll);
 
+  if (!db || !isFirebaseConfigured) return;
+
   try {
-    await fetch('/api/polls', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(updatedPoll),
-    });
-  } catch (err) {
-    // Local fallback
+    await setDoc(
+      doc(db, POLLS_COLLECTION, updatedPoll.id),
+      toFirestorePoll(updatedPoll),
+      { merge: true }
+    );
+  } catch (error) {
+    console.error('Firestore poll save failed; poll kept locally.', error);
+    throw error;
   }
 }
 
 export async function deletePollFromFirestore(pollId: string): Promise<void> {
   deleteLocalPoll(pollId);
+
+  if (!db || !isFirebaseConfigured) return;
+
   try {
-    await fetch(`/api/polls/${pollId}`, {
-      method: 'DELETE',
-    });
-  } catch (err) {
-    // Local fallback
+    await deleteDoc(doc(db, POLLS_COLLECTION, pollId));
+  } catch (error) {
+    console.error('Firestore poll deletion failed.', error);
+    throw error;
   }
 }
 
@@ -196,6 +270,7 @@ export async function submitParticipantVote(
     const existingIndex = updatedParticipants.findIndex(
       p => p.name.trim().toLowerCase() === participantName.trim().toLowerCase()
     );
+
     if (existingIndex >= 0) {
       updatedParticipants[existingIndex] = {
         ...updatedParticipants[existingIndex],
@@ -204,13 +279,12 @@ export async function submitParticipantVote(
         updatedAt: now
       };
     } else {
-      const newParticipant: Participant = {
+      updatedParticipants.push({
         id: 'p-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
         name: participantName,
         votes,
         updatedAt: now
-      };
-      updatedParticipants.push(newParticipant);
+      });
     }
   }
 
@@ -220,7 +294,10 @@ export async function submitParticipantVote(
   };
 
   await savePollToFirestore(updatedPoll);
-  return updatedPoll;
+  return {
+    ...updatedPoll,
+    updatedAt: new Date().toISOString()
+  };
 }
 
 export async function finalizePollSlotFirestore(poll: Poll, slotId: string): Promise<Poll> {
