@@ -15,7 +15,8 @@ import {
   CheckCircle2, 
   Copy, 
   Check,
-  Edit3
+  Edit3,
+  Wand2
 } from 'lucide-react';
 
 interface MyPollsListProps {
@@ -115,7 +116,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
           <button
             onClick={onOpenCalendarView}
             id="hero-open-calendar-btn"
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-xs rounded-sm transition-all shrink-0"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-xs rounded-sm transition-all shrink-0 cursor-pointer"
           >
             <Calendar className="w-4 h-4 text-dns-primary" />
             <span>{t('btnCalendarView', currentLang)}</span>
@@ -123,8 +124,18 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
 
           <button
             onClick={onCreateNew}
+            id="hero-create-ai-poll-btn"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-dns-primary to-[#083845] text-white hover:brightness-110 font-bold text-xs rounded-sm shadow-xs transition-all shrink-0 cursor-pointer border border-[#336979]"
+            title={t('aiPromptSubtitle', currentLang)}
+          >
+            <Wand2 className="w-4 h-4 text-amber-300" />
+            <span>{t('btnCreateWithPrompt', currentLang)}</span>
+          </button>
+
+          <button
+            onClick={onCreateNew}
             id="hero-create-poll-btn"
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-[#336979] text-white hover:bg-[#8EBDC4] hover:text-[#083845] font-bold text-xs rounded-sm shadow-xs transition-all shrink-0"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-[#336979] text-white hover:bg-[#8EBDC4] hover:text-[#083845] font-bold text-xs rounded-sm shadow-xs transition-all shrink-0 cursor-pointer"
           >
             <PlusCircle className="w-4 h-4" />
             <span>{t('btnNewPoll', currentLang)}</span>

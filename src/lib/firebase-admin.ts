@@ -1,11 +1,16 @@
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
-import firebaseConfig from '../../firebase-applet-config.json';
+
+const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || 'react-example';
 
 if (!getApps().length) {
-  initializeApp({
-    projectId: firebaseConfig.projectId,
-  });
+  try {
+    initializeApp({
+      projectId,
+    });
+  } catch (e) {
+    console.warn('Firebase admin initialization skipped or failed:', e);
+  }
 }
 
-export const adminAuth = getAuth();
+export const adminAuth = getApps().length ? getAuth() : null;

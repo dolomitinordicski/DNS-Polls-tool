@@ -3,17 +3,45 @@ import { Poll, TimeSlot } from '../types';
 import { savePollToFirestore } from '../utils/firebaseStorage';
 import { Language, t } from '../utils/i18n';
 import { getAutocompleteData, saveAutocompleteEntry } from '../utils/autocompleteStore';
-import { Calendar, Clock, Plus, Trash2, MapPin, User, Mail, AlignLeft, ArrowRight, Sparkles } from 'lucide-react';
+import { 
+  Calendar, 
+  Clock, 
+  Plus, 
+  Trash2, 
+  MapPin, 
+  User, 
+  Mail, 
+  AlignLeft, 
+  ArrowRight, 
+  Sparkles, 
+  Wand2, 
+  Loader2, 
+  CheckCircle2, 
+  RotateCcw,
+  Lightbulb
+} from 'lucide-react';
 
 interface CreatePollFormProps {
   onPollCreated: (poll: Poll) => void;
   onCancel: () => void;
   currentLang: Language;
+  initialPromptMode?: boolean;
 }
 
-export const CreatePollForm: React.FC<CreatePollFormProps> = ({ onPollCreated, onCancel, currentLang }) => {
+export const CreatePollForm: React.FC<CreatePollFormProps> = ({ 
+  onPollCreated, 
+  onCancel, 
+  currentLang,
+  initialPromptMode = true
+}) => {
   // Autocomplete store data
   const autocomplete = useMemo(() => getAutocompleteData(), []);
+
+  // AI Prompt State
+  const [promptText, setPromptText] = useState('');
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+  const [promptSuccessMessage, setPromptSuccessMessage] = useState('');
+  const [promptErrorMessage, setPromptErrorMessage] = useState('');
 
   // Form State
   const [title, setTitle] = useState('');
@@ -41,6 +69,63 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({ onPollCreated, o
     return d.toISOString().split('T')[0];
   }
 
+  // Handle generating poll details from text prompt
+  const handleGenerateFromPrompt = async (textToUse?: string) => {
+    const queryPrompt = (textToUse !== undefined ? textToUse : promptText).trim();
+    if (!queryPrompt) {
+      setPromptErrorMessage(currentLang === 'de' ? 'Bitte geben Sie einen Text ein.' : 'Inserisci un testo per il prompt.');
+      return;
+    }
+
+    setIsGeneratingPrompt(true);
+    setPromptErrorMessage('');
+    setPromptSuccessMessage('');
+
+    try {
+      const response = await fetch('/api/ai/parse-poll-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: queryPrompt, lang: currentLang })
+      });
+
+      if (!response.ok) {
+        throw new Error('API server response was not ok');
+      }
+
+      const resData = await response.json();
+      if (!resData.success || !resData.data) {
+        throw new Error(resData.error || 'Failed to extract data');
+      }
+
+      const data = resData.data;
+
+      // Populate form state
+      if (data.title) setTitle(data.title);
+      if (data.description) setDescription(data.description);
+      if (data.location) setLocation(data.location);
+      if (data.organizerName && !organizerName) setOrganizerName(data.organizerName);
+      if (typeof data.allowMaybe === 'boolean') setAllowMaybe(data.allowMaybe);
+
+      // Populate slots
+      if (Array.isArray(data.slots) && data.slots.length > 0) {
+        const newSlots: TimeSlot[] = data.slots.map((s: any, idx: number) => ({
+          id: `slot-ai-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+          date: s.date,
+          time: s.time || (currentLang === 'de' ? 'Ganztägig' : 'Tutto il giorno')
+        }));
+        setSlots(newSlots);
+      }
+
+      setPromptSuccessMessage(t('aiPromptSuccess', currentLang));
+      setError('');
+    } catch (err: any) {
+      console.error('Error generating from prompt:', err);
+      setPromptErrorMessage(t('aiPromptError', currentLang));
+    } finally {
+      setIsGeneratingPrompt(false);
+    }
+  };
+
   const handleAddSlot = (dateToAdd?: string, timeToAdd?: string) => {
     const targetDate = dateToAdd || selectedDate;
     if (!targetDate) {
@@ -56,8 +141,16 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({ onPollCreated, o
     setSlots(prev => [...prev, newSlot]);
   };
 
+  const handleUpdateSlotTime = (slotId: string, newTime: string) => {
+    setSlots(prev => prev.map(s => s.id === slotId ? { ...s, time: newTime } : s));
+  };
+
   const handleRemoveSlot = (slotId: string) => {
     setSlots(prev => prev.filter(s => s.id !== slotId));
+  };
+
+  const handleClearAllSlots = () => {
+    setSlots([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -137,6 +230,110 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({ onPollCreated, o
             <p className="text-xs sm:text-sm text-slate-600">
               {t('createSubtitle', currentLang)}
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* AI Prompt Assistant Card */}
+      <div className="bg-gradient-to-br from-[#083845]/5 via-white to-[#336979]/10 border-2 border-[#336979]/40 rounded-sm p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-dns-primary text-white rounded-sm shadow-xs">
+              <Wand2 className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-heading font-extrabold text-sm sm:text-base text-[#083845]">
+                  {t('aiPromptTitle', currentLang)}
+                </h2>
+                <span className="text-[10px] bg-dns-teal/20 text-dns-primary px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider">
+                  {t('aiPromptBadge', currentLang)}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5">
+                {t('aiPromptSubtitle', currentLang)}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Text Prompt Input */}
+        <div className="space-y-2">
+          <textarea
+            rows={3}
+            value={promptText}
+            onChange={(e) => {
+              setPromptText(e.target.value);
+              if (promptErrorMessage) setPromptErrorMessage('');
+            }}
+            placeholder={t('aiPromptPlaceholder', currentLang)}
+            className="w-full bg-white border border-slate-300 focus:border-dns-primary rounded-sm p-3 text-slate-900 text-xs sm:text-sm focus:outline-none transition-all placeholder:text-slate-400 shadow-inner"
+          />
+
+          {/* Quick Examples */}
+          <div className="space-y-1.5 pt-1">
+            <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+              {t('aiPromptExamplesLabel', currentLang)}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                t('aiPromptExample1', currentLang),
+                t('aiPromptExample2', currentLang),
+                t('aiPromptExample3', currentLang),
+              ].map((example, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    const clean = example.replace(/^[^\w\s]+/, '').trim();
+                    setPromptText(clean);
+                    handleGenerateFromPrompt(clean);
+                  }}
+                  className="text-[11px] bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 hover:border-dns-primary rounded-sm px-2.5 py-1 text-left transition-colors cursor-pointer"
+                >
+                  {example}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Generate Button & Status Messages */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+            <div className="flex-1">
+              {promptSuccessMessage && (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-800 bg-emerald-50 border border-emerald-300 px-3 py-1.5 rounded-sm animate-fade-in font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{promptSuccessMessage}</span>
+                </div>
+              )}
+              {promptErrorMessage && (
+                <div className="flex items-center gap-1.5 text-xs text-red-800 bg-red-50 border border-red-300 px-3 py-1.5 rounded-sm animate-fade-in font-medium">
+                  <span>⚠️</span>
+                  <span>{promptErrorMessage}</span>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              id="btn-generate-ai-poll"
+              disabled={isGeneratingPrompt || !promptText.trim()}
+              onClick={() => handleGenerateFromPrompt()}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-dns-primary hover:bg-dns-deep disabled:bg-slate-300 text-white font-bold text-xs rounded-sm transition-all shadow-xs shrink-0 cursor-pointer"
+            >
+              {isGeneratingPrompt ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>{t('generatingFromPrompt', currentLang)}</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>{t('btnGenerateFromPrompt', currentLang)}</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -242,9 +439,21 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({ onPollCreated, o
               <Calendar className="w-5 h-5 text-dns-primary" />
               {t('secSlots', currentLang)}
             </h2>
-            <span className="text-xs text-slate-700 font-bold bg-slate-100 px-2.5 py-1 rounded-sm border border-slate-300">
-              {slots.length} {t('slotsCount', currentLang)}
-            </span>
+            <div className="flex items-center gap-2">
+              {slots.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllSlots}
+                  className="text-xs text-red-600 hover:text-red-800 hover:underline font-bold px-2 py-1"
+                  title={t('clearAllSlots', currentLang)}
+                >
+                  {t('clearAllSlots', currentLang)}
+                </button>
+              )}
+              <span className="text-xs text-slate-700 font-bold bg-slate-100 px-2.5 py-1 rounded-sm border border-slate-300">
+                {slots.length} {t('slotsCount', currentLang)}
+              </span>
+            </div>
           </div>
 
           {/* Quick Date Picker Controls */}
@@ -279,7 +488,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({ onPollCreated, o
                 <button
                   type="button"
                   onClick={() => handleAddSlot()}
-                  className="w-full flex items-center justify-center gap-2 bg-dns-primary hover:bg-dns-deep text-white font-bold py-2 px-4 rounded-sm text-xs transition-all shadow-xs"
+                  className="w-full flex items-center justify-center gap-2 bg-dns-primary hover:bg-dns-deep text-white font-bold py-2 px-4 rounded-sm text-xs transition-all shadow-xs cursor-pointer"
                 >
                   <Plus className="w-4 h-4 text-white" />
                   {t('btnAddDate', currentLang)}
@@ -302,7 +511,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({ onPollCreated, o
                     key={timePreset}
                     type="button"
                     onClick={() => setCustomTime(timePreset)}
-                    className={`text-xs px-2.5 py-1 rounded-sm border transition-colors ${
+                    className={`text-xs px-2.5 py-1 rounded-sm border transition-colors cursor-pointer ${
                       customTime === timePreset
                         ? 'bg-dns-primary text-white border-dns-primary font-bold'
                         : 'bg-white text-slate-700 border-slate-300 hover:border-dns-primary'
@@ -315,11 +524,18 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({ onPollCreated, o
             </div>
           </div>
 
-          {/* Added Slots Display List */}
+          {/* Added Slots Display List with Inline Time Editing */}
           <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
-              {t('slotsAddedLabel', currentLang)}
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                {t('slotsAddedLabel', currentLang)}
+              </h3>
+              {slots.length > 0 && (
+                <span className="text-[11px] text-slate-500 italic">
+                  {currentLang === 'de' ? 'Tipp: Sie können jede Uhrzeit direkt im Textfeld bearbeiten' : 'Nota: Puoi modificare qualsiasi orario direttamente nel riquadro'}
+                </span>
+              )}
+            </div>
 
             {Object.keys(slotsByDate).length === 0 ? (
               <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-300 rounded-sm text-slate-500 text-xs">
@@ -350,17 +566,24 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({ onPollCreated, o
                         {dateSlots.map((s) => (
                           <div 
                             key={s.id}
-                            className="flex items-center justify-between bg-white px-2.5 py-1.5 rounded-sm border border-slate-200 text-xs text-slate-800"
+                            className="flex items-center justify-between gap-2 bg-white px-2.5 py-1.5 rounded-sm border border-slate-200 text-xs text-slate-800 hover:border-slate-300 transition-colors"
                           >
-                            <span className="flex items-center gap-1.5 font-medium">
-                              <Clock className="w-3.5 h-3.5 text-slate-500" />
-                              {s.time || t('allDay', currentLang)}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                              <Clock className="w-3.5 h-3.5 text-dns-primary shrink-0" />
+                              <input
+                                type="text"
+                                value={s.time || ''}
+                                onChange={(e) => handleUpdateSlotTime(s.id, e.target.value)}
+                                placeholder={t('slotEditTimePlaceholder', currentLang)}
+                                className="bg-transparent hover:bg-slate-50 focus:bg-white border border-transparent hover:border-slate-200 focus:border-dns-primary rounded px-1.5 py-0.5 text-xs text-slate-800 w-full focus:outline-none transition-colors font-medium"
+                                title={currentLang === 'de' ? 'Uhrzeit direkt bearbeiten' : 'Modifica orario direttamente'}
+                              />
+                            </div>
                             <button
                               type="button"
                               onClick={() => handleRemoveSlot(s.id)}
-                              className="text-slate-400 hover:text-red-700 p-1 transition-colors"
-                              title="Remove"
+                              className="text-slate-400 hover:text-red-700 p-1 transition-colors shrink-0 cursor-pointer"
+                              title={currentLang === 'de' ? 'Termin entfernen' : 'Rimuovi orario'}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -403,7 +626,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({ onPollCreated, o
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 rounded-sm border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs transition-colors"
+            className="px-4 py-2 rounded-sm border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs transition-colors cursor-pointer"
           >
             {t('btnCancel', currentLang)}
           </button>
@@ -411,7 +634,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({ onPollCreated, o
           <button
             type="submit"
             id="create-poll-submit-btn"
-            className="flex items-center gap-2 px-5 py-2.5 bg-dns-primary text-white hover:bg-dns-deep font-bold text-xs rounded-sm shadow-xs transition-all"
+            className="flex items-center gap-2 px-5 py-2.5 bg-dns-primary text-white hover:bg-dns-deep font-bold text-xs rounded-sm shadow-xs transition-all cursor-pointer"
           >
             <Sparkles className="w-4 h-4 text-white" />
             <span>{t('btnCreateSubmit', currentLang)}</span>

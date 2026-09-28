@@ -83,6 +83,23 @@ export const TRANSLATIONS = {
     errOrganizerRequired: 'Bitte geben Sie den Namen des Organisators ein.',
     errSlotsRequired: 'Bitte fügen Sie mindestens eine Datumsoption hinzu.',
 
+    // AI Prompt Assistant (German)
+    btnCreateWithPrompt: 'Mit KI-Prompt erstellen',
+    aiPromptBadge: 'KI-Planer',
+    aiPromptTitle: 'Schnellerstellung per Text-Prompt',
+    aiPromptSubtitle: 'Schreiben Sie Datum, Uhrzeiten und Details in normaler Sprache (z.B. "Vorstandssitzung am 15. Oktober 09:30-11:00 und 16. Oktober 14:30-16:00 in Toblach"). Die KI füllt alle Termine automatisch aus, und Sie können jeden Termin manuell anpassen!',
+    aiPromptPlaceholder: 'z.B. Sitzung Rennkalender: am 12. Oktober von 09:00 bis 11:00 und am 13. Oktober von 14:30 bis 16:30 in Cortina...',
+    aiPromptExamplesLabel: 'Schnellbeispiele:',
+    aiPromptExample1: '📅 Sitzung Vorstand am 15. Oktober 09:30-11:00 und 16. Oktober 14:30-16:00 in Toblach',
+    aiPromptExample2: '🎿 Skilehrer-Briefing: nächsten Donnerstag 10:00-12:00 und Freitag 14:00-16:00',
+    aiPromptExample3: '🏆 Jahreshauptversammlung: 20. November ganztägig in Cortina',
+    btnGenerateFromPrompt: 'Umfrage & Termine mit KI erstellen',
+    generatingFromPrompt: 'Termine und Zeiten werden mit KI analysiert...',
+    aiPromptSuccess: '✨ Umfragedaten und Termine erfolgreich übernommen! Sie können jetzt jedes Feld, die Uhrzeiten und Termine unten frei bearbeiten.',
+    aiPromptError: 'Konnte aus dem Text keine Termine extrahieren. Bitte versuchen Sie es erneut oder fügen Sie Termine manuell hinzu.',
+    slotEditTimePlaceholder: 'Uhrzeit bearbeiten (z.B. 09:30 - 11:00)',
+    clearAllSlots: 'Alle Termine zurücksetzen',
+
     // PollTable & Voting
     participantsHeader: 'Teilnehmer',
     responsesCount: 'Antworten',
@@ -273,6 +290,23 @@ export const TRANSLATIONS = {
     errTitleRequired: 'Inserisci un titolo per il sondaggio.',
     errOrganizerRequired: 'Inserisci il nome dell\'organizzatore.',
     errSlotsRequired: 'Aggiungi almeno una data e orario al sondaggio.',
+
+    // AI Prompt Assistant (Italian)
+    btnCreateWithPrompt: 'Crea con Prompt IA',
+    aiPromptBadge: 'Assistente IA',
+    aiPromptTitle: 'Creazione Rapida da Prompt Testuale',
+    aiPromptSubtitle: 'Scrivi in linguaggio naturale descrizione, date e orari (es: "Riunione calendario gare a Dobbiaco: 15 ottobre 09:30-11:00 e 16 ottobre 14:30-16:00"). L\'IA compilerà automaticamente per te tutti i dettagli e gli orari, e potrai sempre modificarli manualmente prima di salvare!',
+    aiPromptPlaceholder: 'Es. Riunione calendario gare sci a Dobbiaco: 15 ottobre dalle 9:00 alle 11:00 e il 16 ottobre dalle 14:30 alle 16:00 e dalle 17:00 alle 18:30...',
+    aiPromptExamplesLabel: 'Esempi rapidi da provare:',
+    aiPromptExample1: '📅 Riunione direttivo 15 Ottobre 09:30-11:00 e 16 Ottobre 14:30-16:00 a Dobbiaco',
+    aiPromptExample2: '🎿 Briefing maestri sci: prossimo giovedì 10:00-12:00 e venerdì 14:00-16:00',
+    aiPromptExample3: '🏆 Assemblea annuale soci: 20 Novembre tutto il giorno a Cortina',
+    btnGenerateFromPrompt: 'Genera Sondaggio & Orari con IA',
+    generatingFromPrompt: 'Analisi date e orari con IA in corso...',
+    aiPromptSuccess: '✨ Sondaggio e orari estratti con successo! Ora puoi modificare qualsiasi orario, data, titolo o dettaglio qui sotto.',
+    aiPromptError: 'Impossibile estrarre date e orari dal testo fornito. Riprova con un testo più descrittivo o inseriscili manualmente.',
+    slotEditTimePlaceholder: 'Modifica orario (es. 09:30 - 11:00)',
+    clearAllSlots: 'Cancella tutti gli orari',
 
     // PollTable & Voting
     participantsHeader: 'Partecipanti',
