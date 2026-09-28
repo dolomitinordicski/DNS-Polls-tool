@@ -4,7 +4,6 @@ import { getTopVotedSlot, formatDate } from '../utils/dateUtils';
 import { deletePollFromFirestore, getPollShareUrl } from '../utils/firebaseStorage';
 import { Language, t } from '../utils/i18n';
 import { EditPollModal } from './EditPollModal';
-import dnsLogoFarbe from '../assets/dns-logo-farbe.png';
 import { 
   Calendar, 
   Users, 
@@ -97,8 +96,18 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
       <div className="bg-white border border-slate-300 rounded-sm p-6 text-slate-800 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-2 max-w-xl">
           <div className="flex items-center gap-2">
-            <span className="shrink-0 flex items-center">
-              <img src={dnsLogoFarbe} alt="DNS Logo" className="h-[28px] w-auto object-contain" />
+            <span className="w-[96px] h-[28px] shrink-0 flex items-center overflow-hidden">
+              <img
+                src="./dns-logo-farbe.png"
+                alt=""
+                aria-hidden="true"
+                width="96"
+                height="28"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.visibility = 'hidden';
+                }}
+              />
             </span>
             <span className="text-xs font-bold uppercase tracking-wider text-dns-primary">
               {t('welcomeBadge', currentLang)}
