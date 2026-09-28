@@ -71,10 +71,19 @@ export async function fetchPollsFromApi(): Promise<Poll[]> {
 export function subscribeToPollsFromFirestore(onUpdate: (polls: Poll[]) => void): () => void {
   let active = true;
 
+  // App.tsx already loads the local snapshot synchronously on mount.
+  // Keep the last serialized value so the 3-second fallback poll does not
+  // force a full React render when nothing actually changed.
+  let lastSnapshot = JSON.stringify(getLocalPolls());
+
   const pollApi = async () => {
     if (!active) return;
+
     const merged = await fetchPollsFromApi();
-    if (active) {
+    const nextSnapshot = JSON.stringify(merged);
+
+    if (active && nextSnapshot !== lastSnapshot) {
+      lastSnapshot = nextSnapshot;
       onUpdate(merged);
     }
   };
@@ -108,11 +117,16 @@ export async function getPollFromFirestore(pollId: string): Promise<Poll | null>
 
 export function subscribeToPoll(pollId: string, onUpdate: (poll: Poll | null) => void): () => void {
   let active = true;
+  let lastSnapshot: string | undefined;
 
   const pollApi = async () => {
     if (!active) return;
+
     const poll = await getPollFromFirestore(pollId);
-    if (active) {
+    const nextSnapshot = JSON.stringify(poll);
+
+    if (active && nextSnapshot !== lastSnapshot) {
+      lastSnapshot = nextSnapshot;
       onUpdate(poll);
     }
   };
