@@ -126,8 +126,13 @@ export function decodePollFromHash(): Poll | null {
  * Generates clean short shareable URL for a poll
  */
 export function getPollShareUrl(poll: Poll): string {
-  const origin = window.location.origin;
-  return `${origin}/s/${poll.id}`;
+  // Preserve the GitHub Pages project path (e.g. /DNS-Polls-tool/) and use
+  // a query parameter that the static SPA can resolve without a server route.
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('poll', poll.id);
+  return url.toString();
 }
 
 /**

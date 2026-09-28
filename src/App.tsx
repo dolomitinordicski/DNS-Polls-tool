@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { Poll } from './types';
 import { getLocalPolls, decodePollFromHash, savePoll } from './utils/storage';
 import { subscribeToPollsFromFirestore, getPollFromFirestore } from './utils/firebaseStorage';
+import { isFirebaseConfigured } from './lib/firebase';
 import { Language, t } from './utils/i18n';
 import { Header } from './components/Header';
 import { MyPollsList } from './components/MyPollsList';
@@ -22,7 +23,7 @@ export default function App() {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
   const [appShareModalOpen, setAppShareModalOpen] = useState(false);
-  const [isFirestoreLive, setIsFirestoreLive] = useState(true);
+  const [isFirestoreLive, setIsFirestoreLive] = useState(isFirebaseConfigured);
   const [currentLang, setCurrentLang] = useState<Language>('de');
   const [isInviteeLink, setIsInviteeLink] = useState(false);
 
@@ -34,7 +35,7 @@ export default function App() {
     // 1. Subscribe to real-time updates from Firestore
     const unsubscribe = subscribeToPollsFromFirestore((updatedPolls) => {
       setPolls(updatedPolls);
-      setIsFirestoreLive(true);
+      setIsFirestoreLive(isFirebaseConfigured);
     });
 
     // 2. Check if URL param or hash contains poll data
