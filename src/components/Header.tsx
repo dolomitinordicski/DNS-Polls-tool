@@ -56,12 +56,16 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <p className="text-xs text-slate-100 font-medium flex items-center gap-2 mt-0.5">
               <span>{isInviteeMode ? t('inviteeHeaderTag', currentLang) : t('tagline', currentLang)}</span>
-              {isFirestoreConnected && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-300 bg-[#083845] px-2 py-0.5 rounded-sm border border-emerald-500/50 font-mono font-bold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  Live
-                </span>
-              )}
+              <span
+                className={`inline-flex min-w-[58px] justify-center items-center gap-1 text-[10px] bg-[#083845] px-2 py-0.5 rounded-sm border font-mono font-bold ${
+                  isFirestoreConnected
+                    ? 'text-emerald-300 border-emerald-500/50'
+                    : 'text-slate-300 border-slate-500/40'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${isFirestoreConnected ? 'bg-emerald-400' : 'bg-slate-400'}`} />
+                {isFirestoreConnected ? 'Live' : 'Sync'}
+              </span>
             </p>
           </div>
         </div>
