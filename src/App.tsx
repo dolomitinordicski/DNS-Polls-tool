@@ -20,7 +20,7 @@ import dnsLogoNegativ from './assets/dns-logo-negativ.png';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar'>('list');
-  const [polls, setPolls] = useState<Poll[]>([]);
+  const [polls, setPolls] = useState<Poll[]>(() => getLocalPolls());
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
   const [appShareModalOpen, setAppShareModalOpen] = useState(false);
   const [isFirestoreLive, setIsFirestoreLive] = useState(isFirebaseConfigured);
@@ -29,12 +29,14 @@ export default function App() {
 
   // Real-time Firestore Subscription & Initial URL checking
   useEffect(() => {
-    // Initial local fallback loading
-    setPolls(getLocalPolls());
-
-    // 1. Subscribe to real-time updates from Firestore
+    // Subscribe to real-time updates from Firestore. Local data is already
+    // loaded synchronously in the initial state to avoid a visible empty-state flash.
     const unsubscribe = subscribeToPollsFromFirestore((updatedPolls) => {
-      setPolls(updatedPolls);
+      setPolls(current => (
+        JSON.stringify(current) === JSON.stringify(updatedPolls)
+          ? current
+          : updatedPolls
+      ));
       setIsFirestoreLive(isFirebaseConfigured);
     });
 
@@ -107,7 +109,12 @@ export default function App() {
   }, [polls]);
 
   const refreshPollsList = () => {
-    setPolls(getLocalPolls());
+    const localPolls = getLocalPolls();
+    setPolls(current => (
+      JSON.stringify(current) === JSON.stringify(localPolls)
+        ? current
+        : localPolls
+    ));
   };
 
   const handleSelectPoll = (poll: Poll) => {
