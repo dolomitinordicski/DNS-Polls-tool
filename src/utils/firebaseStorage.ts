@@ -5,6 +5,13 @@ export function getPollShareUrl(poll: Poll): string {
   return getStorageShareUrl(poll);
 }
 
+function hasBackendApi(): boolean {
+  // GitHub Pages is static hosting: server.ts and /api/* are not deployed there.
+  // In that environment DNS Polls must use the local fallback instead of
+  // repeatedly requesting endpoints that can only exist on the Express server.
+  return !window.location.hostname.endsWith('github.io');
+}
+
 function mergeParticipants(p1: Participant[] = [], p2: Participant[] = []): Participant[] {
   const map = new Map<string, Participant>();
   p1.forEach(p => map.set(p.id, p));
@@ -53,6 +60,10 @@ function mergeLocalAndRemotePolls(remotePolls: Poll[]): Poll[] {
 }
 
 export async function fetchPollsFromApi(): Promise<Poll[]> {
+  if (!hasBackendApi()) {
+    return getLocalPolls();
+  }
+
   try {
     const response = await fetch('/api/polls');
     if (response.ok) {
@@ -100,6 +111,10 @@ export function subscribeToPollsFromFirestore(onUpdate: (polls: Poll[]) => void)
 export const subscribeToPolls = subscribeToPollsFromFirestore;
 
 export async function getPollFromFirestore(pollId: string): Promise<Poll | null> {
+  if (!hasBackendApi()) {
+    return getLocalPolls().find(p => p.id === pollId) || null;
+  }
+
   try {
     const response = await fetch(`/api/polls/${pollId}`);
     if (response.ok) {
@@ -148,6 +163,10 @@ export async function savePollToFirestore(poll: Poll): Promise<void> {
 
   saveLocalPoll(updatedPoll);
 
+  if (!hasBackendApi()) {
+    return;
+  }
+
   try {
     await fetch('/api/polls', {
       method: 'POST',
@@ -163,6 +182,11 @@ export async function savePollToFirestore(poll: Poll): Promise<void> {
 
 export async function deletePollFromFirestore(pollId: string): Promise<void> {
   deleteLocalPoll(pollId);
+
+  if (!hasBackendApi()) {
+    return;
+  }
+
   try {
     await fetch(`/api/polls/${pollId}`, {
       method: 'DELETE',
