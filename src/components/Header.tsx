@@ -20,31 +20,28 @@ export const Header: React.FC<HeaderProps> = ({
   onLanguageChange,
   activePollTitle,
   onQuickShareApp,
-  isFirestoreConnected = true,
   isInviteeMode = false
 }) => {
   return (
     <header className="sticky top-0 z-40 text-white font-heading shadow-[0_1px_0_rgba(255,255,255,.08)]">
-      <div className="bg-dns-primary px-4 md:px-[1.8rem] py-3">
+      <div className="bg-dns-primary px-4 md:px-[1.8rem] py-3.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div
             onClick={() => !isInviteeMode && onNavigate('list')}
             className={`flex items-center gap-[18px] min-w-0 ${!isInviteeMode ? 'cursor-pointer' : ''}`}
           >
-            <img src="./dns-logo-negativ.png" alt="Dolomiti NordicSki" className="h-10 w-auto shrink-0 object-contain" />
+            <img src="./logo1.png" alt="Dolomiti NordicSki" className="h-11 md:h-12 w-auto shrink-0 object-contain" />
             <div className="min-w-0">
-              <div className="text-[16px] font-bold leading-tight text-white">DNS Polls</div>
-              <div className="font-alt text-[12px] font-light leading-tight text-dns-soft mt-0.5 truncate">
+              <div className="uppercase text-[21px] md:text-[23px] leading-none tracking-[.035em] text-white whitespace-nowrap">
+                <span className="font-bold">DNS</span><span className="font-normal ml-2">POLLS</span>
+              </div>
+              <div className="font-alt text-[12px] md:text-[13px] font-normal uppercase tracking-[.035em] leading-tight text-dns-soft mt-1 truncate">
                 {isInviteeMode ? t('inviteeHeaderTag', currentLang) : t('tagline', currentLang)}
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className={`hidden sm:inline-flex items-center gap-1.5 rounded-full bg-dns-teal px-3 py-1 text-[10px] font-semibold tracking-[.06em] ${isFirestoreConnected ? 'text-white' : 'text-white/65'}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${isFirestoreConnected ? 'bg-emerald-300' : 'bg-white/40'}`} />
-              {isFirestoreConnected ? 'LIVE' : 'SYNC'}
-            </span>
             <div className="flex items-center gap-1">
               {(['de','it'] as Language[]).map(lang => (
                 <button

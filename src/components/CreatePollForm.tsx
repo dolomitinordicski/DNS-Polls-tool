@@ -14,8 +14,6 @@ import {
   Mail, 
   AlignLeft, 
   ArrowRight, 
-  Sparkles, 
-  Wand2, 
   Loader2, 
   CheckCircle2, 
   RotateCcw,
@@ -226,21 +224,18 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
         </div>
       </div>
 
-      {/* AI Prompt Assistant Card */}
-      <div className="bg-gradient-to-br from-[#083845]/5 via-white to-[#336979]/10 border-2 border-[#336979]/40 rounded-sm p-5 shadow-xs space-y-4">
+      {/* Text prompt quick-entry */}
+      <div className="bg-white border border-dns-teal/20 rounded-[10px] p-5 shadow-[0_1px_4px_rgba(13,77,94,.06)] space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-dns-primary text-white rounded-sm shadow-xs">
-              <Wand2 className="w-4 h-4" />
+            <div className="p-2 bg-dns-primary/[.06] text-dns-primary rounded-md">
+              <AlignLeft className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="font-heading font-extrabold text-sm sm:text-base text-[#083845]">
                   {t('aiPromptTitle', currentLang)}
                 </h2>
-                <span className="text-[10px] bg-dns-teal/20 text-dns-primary px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider">
-                  {t('aiPromptBadge', currentLang)}
-                </span>
               </div>
               <p className="text-xs text-slate-600 mt-0.5">
                 {t('aiPromptSubtitle', currentLang)}
@@ -362,7 +357,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <ArrowRight className="w-4 h-4 text-white" />
                   <span>{t('btnGenerateFromPrompt', currentLang)}</span>
                 </>
               )}
@@ -669,7 +664,6 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
             id="create-poll-submit-btn"
             className="flex items-center gap-2 px-5 py-2.5 bg-dns-primary text-white hover:bg-dns-deep font-bold text-xs rounded-sm shadow-xs transition-all cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-white" />
             <span>{t('btnCreateSubmit', currentLang)}</span>
             <ArrowRight className="w-4 h-4" />
           </button>

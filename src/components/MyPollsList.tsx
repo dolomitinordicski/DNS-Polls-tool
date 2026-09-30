@@ -15,7 +15,7 @@ import {
   Copy, 
   Check,
   Edit3,
-  Wand2
+  AlignLeft
 } from 'lucide-react';
 
 interface MyPollsListProps {
@@ -95,24 +95,6 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
       {/* Top Welcome Banner */}
       <div className="bg-white border border-slate-300 rounded-sm p-6 text-slate-800 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-2 max-w-xl">
-          <div className="flex items-center gap-2">
-            <span className="w-[96px] h-[28px] shrink-0 flex items-center overflow-hidden">
-              <img
-                src="./dns-logo-farbe.png"
-                alt=""
-                aria-hidden="true"
-                width="96"
-                height="28"
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.visibility = 'hidden';
-                }}
-              />
-            </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-dns-primary">
-              {t('welcomeBadge', currentLang)}
-            </span>
-          </div>
           <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-[#083845] tracking-tight">
             {t('welcomeTitle', currentLang)}
           </h1>
@@ -134,10 +116,10 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
           <button
             onClick={onCreateNew}
             id="hero-create-ai-poll-btn"
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-dns-primary to-[#083845] text-white hover:brightness-110 font-bold text-xs rounded-sm shadow-xs transition-all shrink-0 cursor-pointer border border-[#336979]"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-dns-primary hover:bg-dns-primary/[.04] font-semibold text-xs rounded-md transition-colors shrink-0 cursor-pointer border border-dns-teal/25"
             title={t('aiPromptSubtitle', currentLang)}
           >
-            <Wand2 className="w-4 h-4 text-amber-300" />
+            <AlignLeft className="w-4 h-4 text-dns-teal" />
             <span>{t('btnCreateWithPrompt', currentLang)}</span>
           </button>
 
