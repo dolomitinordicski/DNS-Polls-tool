@@ -4,7 +4,6 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
 import { Poll } from './types';
 import { decodePollFromHash } from './utils/storage';
 import {
@@ -12,29 +11,15 @@ import {
   subscribeToPoll,
   subscribeToPollsFromFirestore,
 } from './utils/firebaseStorage';
-import { auth, googleAuthProvider, isFirebaseConfigured } from './lib/firebase';
+import { isFirebaseConfigured } from './lib/firebase';
 import { Language, t } from './utils/i18n';
 import { Header } from './components/Header';
-import { AdminLogin } from './components/AdminLogin';
 import { MyPollsList } from './components/MyPollsList';
 import { CreatePollForm } from './components/CreatePollForm';
 import { PollView } from './components/PollView';
 import { PollCalendarView } from './components/PollCalendarView';
 import { ShareModal } from './components/ShareModal';
 import { Calendar as CalendarIcon } from 'lucide-react';
-
-const normalizeEmail = (value?: string | null) => (value || '').trim().toLowerCase();
-
-function getAllowedAdminEmails(): string[] {
-  const configured = (import.meta.env.VITE_ADMIN_EMAILS || '')
-    .split(',')
-    .map((email: string) => normalizeEmail(email))
-    .filter(Boolean);
-
-  return configured.length > 0
-    ? configured
-    : ['management@dolomitinordicski.com'];
-}
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar'>('list');
@@ -44,9 +29,6 @@ export default function App() {
   const [appShareModalOpen, setAppShareModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<FirestoreSyncStatus>(isFirebaseConfigured ? 'connecting' : 'offline');
   const [currentLang, setCurrentLang] = useState<Language>('de');
-  const [adminUser, setAdminUser] = useState<User | null>(null);
-  const [authReady, setAuthReady] = useState(!auth);
-  const [authError, setAuthError] = useState<string | null>(null);
 
   const initialPublicTarget = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
@@ -56,44 +38,8 @@ export default function App() {
   }, []);
 
   const isInviteeLink = Boolean(initialPublicTarget.pollId || initialPublicTarget.hashPoll);
-  const allowedAdminEmails = useMemo(() => getAllowedAdminEmails(), []);
 
-  const isAuthorizedAdmin = (user: User | null) =>
-    Boolean(user?.email && allowedAdminEmails.includes(normalizeEmail(user.email)));
-
-  // Authentication is only relevant for the DNS administrative area.
-  useEffect(() => {
-    if (!auth) {
-      setAuthReady(true);
-      return;
-    }
-
-    return onAuthStateChanged(auth, async user => {
-      if (!user) {
-        setAdminUser(null);
-        setAuthReady(true);
-        return;
-      }
-
-      if (!isAuthorizedAdmin(user)) {
-        setAuthError(
-          currentLang === 'de'
-            ? 'Dieses Google-Konto ist nicht für DNS Polls Admin freigegeben.'
-            : 'Questo account Google non è autorizzato per DNS Polls Admin.'
-        );
-        setAdminUser(null);
-        await signOut(auth);
-        setAuthReady(true);
-        return;
-      }
-
-      setAuthError(null);
-      setAdminUser(user);
-      setAuthReady(true);
-    });
-  }, [allowedAdminEmails, currentLang]);
-
-  // Public links subscribe only to the requested poll. They never subscribe to the full poll collection.
+  // Public links load only the requested poll.
   useEffect(() => {
     if (!isInviteeLink) return;
 
@@ -116,9 +62,10 @@ export default function App() {
     }
   }, [initialPublicTarget, isInviteeLink]);
 
-  // The full collection is loaded only after a verified admin session exists.
+  // Temporary operational mode: the admin dashboard stays open without authentication.
+  // Public invitee links remain isolated from the full poll collection.
   useEffect(() => {
-    if (isInviteeLink || !adminUser) return;
+    if (isInviteeLink) return;
 
     setHasInitialPolls(false);
     return subscribeToPollsFromFirestore(
@@ -132,9 +79,8 @@ export default function App() {
       },
       status => setSyncStatus(status)
     );
-  }, [adminUser, isInviteeLink]);
+  }, [isInviteeLink]);
 
-  // Keep the selected admin poll synchronized with the authenticated collection listener.
   useEffect(() => {
     if (isInviteeLink || !activePoll) return;
     const fresh = polls.find(p => p.id === activePoll.id);
@@ -143,57 +89,16 @@ export default function App() {
     }
   }, [polls, activePoll, isInviteeLink]);
 
-  const handleAdminSignIn = async () => {
-    if (!auth) {
-      setAuthError(
-        currentLang === 'de'
-          ? 'Firebase Authentication ist nicht verfügbar.'
-          : 'Firebase Authentication non è disponibile.'
-      );
-      return;
-    }
-
-    setAuthError(null);
-    try {
-      const result = await signInWithPopup(auth, googleAuthProvider);
-      if (!isAuthorizedAdmin(result.user)) {
-        setAuthError(
-          currentLang === 'de'
-            ? 'Dieses Google-Konto ist nicht für DNS Polls Admin freigegeben.'
-            : 'Questo account Google non è autorizzato per DNS Polls Admin.'
-        );
-        await signOut(auth);
-      }
-    } catch (error) {
-      const err = error as { code?: string };
-      setAuthError(
-        err?.code === 'auth/popup-closed-by-user'
-          ? (currentLang === 'de' ? 'Anmeldung abgebrochen.' : 'Accesso annullato.')
-          : (currentLang === 'de' ? 'Google-Anmeldung fehlgeschlagen.' : 'Accesso Google non riuscito.')
-      );
-    }
-  };
-
-  const handleAdminSignOut = async () => {
-    if (auth) await signOut(auth);
-    setAdminUser(null);
-    setPolls([]);
-    setActivePoll(null);
-    setCurrentView('list');
-  };
-
   const refreshPollsList = () => {
     // Firestore listeners are authoritative and will refresh the list automatically.
   };
 
   const handleSelectPoll = (poll: Poll) => {
-    if (!adminUser) return;
     setActivePoll(poll);
     setCurrentView('view');
   };
 
   const handlePollCreated = (newPoll: Poll) => {
-    if (!adminUser) return;
     setActivePoll(newPoll);
     setCurrentView('view');
     refreshPollsList();
@@ -205,11 +110,8 @@ export default function App() {
   };
 
   const handleNavigate = (view: 'create' | 'list' | 'calendar') => {
-    if (!adminUser) return;
     setCurrentView(view);
   };
-
-  const adminLocked = !isInviteeLink && (!authReady || !adminUser);
 
   return (
     <div className="min-h-screen bg-dns-bg text-dns-primary flex flex-col font-body selection:bg-dns-soft selection:text-dns-primary">
@@ -222,27 +124,11 @@ export default function App() {
         currentLang={currentLang}
         onLanguageChange={setCurrentLang}
         isInviteeMode={isInviteeLink && currentView === 'view'}
-        isAdminLocked={adminLocked}
-        adminEmail={adminUser?.email}
-        onSignOut={handleAdminSignOut}
+        isAdminLocked={false}
       />
 
       <main className="flex-1 pb-14">
-        {!isInviteeLink && !authReady && (
-          <div className="max-w-md mx-auto px-4 py-16">
-            <div className="h-52 bg-white border border-slate-300 rounded-[10px] animate-pulse" />
-          </div>
-        )}
-
-        {!isInviteeLink && authReady && !adminUser && (
-          <AdminLogin
-            currentLang={currentLang}
-            onSignIn={handleAdminSignIn}
-            error={authError}
-          />
-        )}
-
-        {!isInviteeLink && adminUser && currentView === 'list' && !hasInitialPolls && (
+        {!isInviteeLink && currentView === 'list' && !hasInitialPolls && (
           <div className="max-w-6xl mx-auto px-4 py-8">
             <div className="min-h-[420px] bg-white border border-slate-300 rounded-sm p-6 shadow-xs">
               <div className="h-5 w-40 bg-slate-200 rounded-sm mb-5" />
@@ -256,7 +142,7 @@ export default function App() {
           </div>
         )}
 
-        {!isInviteeLink && adminUser && currentView === 'list' && hasInitialPolls && (
+        {!isInviteeLink && currentView === 'list' && hasInitialPolls && (
           <MyPollsList
             polls={polls}
             onSelectPoll={handleSelectPoll}
@@ -267,7 +153,7 @@ export default function App() {
           />
         )}
 
-        {!isInviteeLink && adminUser && currentView === 'create' && (
+        {!isInviteeLink && currentView === 'create' && (
           <CreatePollForm
             onPollCreated={handlePollCreated}
             onCancel={() => setCurrentView('list')}
@@ -275,7 +161,7 @@ export default function App() {
           />
         )}
 
-        {currentView === 'view' && activePoll && (isInviteeLink || adminUser) && (
+        {currentView === 'view' && activePoll && (
           <PollView
             poll={activePoll}
             onPollUpdated={handlePollUpdated}
@@ -285,7 +171,7 @@ export default function App() {
           />
         )}
 
-        {!isInviteeLink && adminUser && currentView === 'calendar' && (
+        {!isInviteeLink && currentView === 'calendar' && (
           <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-body">
             <div className="flex items-center justify-between border-b border-slate-300 pb-4">
               <div>
@@ -318,7 +204,7 @@ export default function App() {
         )}
       </main>
 
-      {!isInviteeLink && adminUser && activePoll && (
+      {!isInviteeLink && activePoll && (
         <ShareModal
           poll={activePoll}
           isOpen={appShareModalOpen}
