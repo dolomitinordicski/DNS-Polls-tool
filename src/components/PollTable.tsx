@@ -7,7 +7,11 @@ import { Check, X, HelpCircle, UserPlus, Trophy, Clock, CheckCircle2, AlertCircl
 
 interface PollTableProps {
   poll: Poll;
-  onVoteSubmit: (participant: ParticipantIdentity, votes: Record<string, VoteStatus>) => void | Promise<void>;
+  onVoteSubmit: (
+    participant: ParticipantIdentity,
+    votes: Record<string, VoteStatus>,
+    editingParticipantId?: string
+  ) => void | Promise<void>;
   onFinalizeSlot?: (slotId: string) => void;
   isOrganizerView?: boolean;
   currentLang?: Language;
@@ -83,7 +87,8 @@ export const PollTable: React.FC<PollTableProps> = ({
     // The e-mail stays scoped to this poll response and is not promoted to a reusable contact list.
     await onVoteSubmit(
       { firstName: cleanFirstName, lastName: cleanLastName, email: cleanEmail },
-      completeVotes
+      completeVotes,
+      isOrganizerView ? (editingParticipantId || undefined) : undefined
     );
     setSubmitSuccess(true);
 
@@ -236,13 +241,15 @@ export const PollTable: React.FC<PollTableProps> = ({
                         </div>
                         <span className="truncate max-w-[140px] text-[#083845] font-medium">{p.name}</span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleEditParticipant(p)}
-                        className="text-[10px] text-slate-500 hover:text-dns-primary underline shrink-0 font-bold"
-                      >
-                        {currentLang === 'de' ? 'Bearbeiten' : 'Modifica'}
-                      </button>
+                      {isOrganizerView && (
+                        <button
+                          type="button"
+                          onClick={() => handleEditParticipant(p)}
+                          className="text-[10px] text-slate-500 hover:text-dns-primary underline shrink-0 font-bold"
+                        >
+                          {currentLang === 'de' ? 'Bearbeiten' : 'Modifica'}
+                        </button>
+                      )}
                     </td>
 
                     {poll.slots.map((slot) => {

@@ -22,8 +22,17 @@ export interface Participant {
   name: string; // Display name kept for backwards compatibility with existing polls
   firstName?: string;
   lastName?: string;
-  email?: string; // Scoped to this poll only; never promoted automatically to contact presets
+  email?: string; // Legacy/local-only field. Firestore public responses never contain e-mail.
   votes: Record<string, VoteStatus>; // slotId -> VoteStatus
+  updatedAt: string;
+}
+
+export interface PrivateParticipantContact {
+  id: string;
+  participantId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
   updatedAt: string;
 }
 
