@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Poll, VoteStatus } from '../types';
+import { ParticipantIdentity, Poll, VoteStatus } from '../types';
 import { formatDate, getSlotVoteSummary, getTopVotedSlot } from '../utils/dateUtils';
 import { generateICalFile } from '../utils/storage';
 import { getPollShareUrl, submitParticipantVote, finalizePollSlotFirestore, deletePollFromFirestore, savePollToFirestore } from '../utils/firebaseStorage';
