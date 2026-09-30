@@ -250,25 +250,41 @@ export async function deletePollFromFirestore(pollId: string): Promise<void> {
 
 export async function submitParticipantVote(
   poll: Poll,
-  participantName: string,
+  identity: ParticipantIdentity,
   votes: Record<string, VoteStatus>,
   editingParticipantId?: string
 ): Promise<Poll> {
   const now = new Date().toISOString();
+  const firstName = identity.firstName.trim();
+  const lastName = identity.lastName.trim();
+  const email = identity.email.trim().toLowerCase();
+  const participantName = [firstName, lastName].filter(Boolean).join(' ');
 
-  if (!db || !isFirebaseConfigured) {
-    const participants = [...poll.participants];
+  const upsertParticipant = (participantsInput: Poll['participants']) => {
+    const participants = [...participantsInput];
     const existingIndex = editingParticipantId
       ? participants.findIndex(p => p.id === editingParticipantId)
-      : participants.findIndex(
-          p => p.name.trim().toLowerCase() === participantName.trim().toLowerCase()
+      : participants.findIndex(p =>
+          (p.email && p.email.trim().toLowerCase() === email) ||
+          (!p.email && p.name.trim().toLowerCase() === participantName.toLowerCase())
         );
 
     const participant = existingIndex >= 0
-      ? { ...participants[existingIndex], name: participantName, votes, updatedAt: now }
+      ? {
+          ...participants[existingIndex],
+          name: participantName,
+          firstName,
+          lastName,
+          email,
+          votes,
+          updatedAt: now,
+        }
       : {
           id: 'p-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
           name: participantName,
+          firstName,
+          lastName,
+          email,
           votes,
           updatedAt: now,
         };
@@ -276,6 +292,11 @@ export async function submitParticipantVote(
     if (existingIndex >= 0) participants[existingIndex] = participant;
     else participants.push(participant);
 
+    return participants;
+  };
+
+  if (!db || !isFirebaseConfigured) {
+    const participants = upsertParticipant(poll.participants || []);
     const updated = { ...poll, participants, updatedAt: now };
     saveLocalPoll(updated);
     return updated;
@@ -285,25 +306,7 @@ export async function submitParticipantVote(
   const updated = await runTransaction(db, async transaction => {
     const snapshot = await transaction.get(pollRef);
     const latestPoll = snapshot.exists() ? (snapshot.data() as Poll) : poll;
-    const participants = [...(latestPoll.participants || [])];
-
-    const existingIndex = editingParticipantId
-      ? participants.findIndex(p => p.id === editingParticipantId)
-      : participants.findIndex(
-          p => p.name.trim().toLowerCase() === participantName.trim().toLowerCase()
-        );
-
-    const participant = existingIndex >= 0
-      ? { ...participants[existingIndex], name: participantName, votes, updatedAt: now }
-      : {
-          id: 'p-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-          name: participantName,
-          votes,
-          updatedAt: now,
-        };
-
-    if (existingIndex >= 0) participants[existingIndex] = participant;
-    else participants.push(participant);
+    const participants = upsertParticipant(latestPoll.participants || []);
 
     const nextPoll: Poll = {
       ...latestPoll,
