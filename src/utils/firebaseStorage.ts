@@ -8,7 +8,7 @@ import {
   runTransaction,
   setDoc,
 } from 'firebase/firestore';
-import { Poll, VoteStatus } from '../types';
+import { ParticipantIdentity, Poll, VoteStatus } from '../types';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 import {
   deletePoll as deleteLocalPoll,
