@@ -7,9 +7,10 @@ import {
   onSnapshot,
   runTransaction,
   setDoc,
+  writeBatch,
 } from 'firebase/firestore';
-import { ParticipantIdentity, Poll, VoteStatus } from '../types';
-import { db, isFirebaseConfigured } from '../lib/firebase';
+import { Participant, ParticipantIdentity, Poll, PrivateParticipantContact, VoteStatus } from '../types';
+import { auth, db, isFirebaseConfigured } from '../lib/firebase';
 import {
   deletePoll as deleteLocalPoll,
   getLocalPolls,
@@ -19,7 +20,9 @@ import {
 } from './storage';
 
 const POLLS_COLLECTION = 'polls';
-const LEGACY_MIGRATION_KEY = 'dns_polls_firestore_migration_v1';
+const RESPONSES_COLLECTION = 'responses';
+const PRIVATE_CONTACTS_COLLECTION = 'privateContacts';
+const LEGACY_MIGRATION_KEY = 'dns_polls_firestore_migration_v2';
 
 export type FirestoreSyncStatus = 'connecting' | 'live' | 'offline';
 
@@ -27,8 +30,25 @@ export function getPollShareUrl(poll: Poll): string {
   return getStorageShareUrl(poll);
 }
 
-function toFirestorePoll(poll: Poll): Poll {
-  return JSON.parse(JSON.stringify(poll)) as Poll;
+function stripPrivateParticipantFields(participant: Participant): Participant {
+  const { email: _email, ...publicParticipant } = participant;
+  return publicParticipant;
+}
+
+function toFirestorePollDocument(poll: Poll): Record<string, unknown> {
+  const { participants: _participants, ...pollDocument } = poll;
+  return JSON.parse(JSON.stringify(pollDocument)) as Record<string, unknown>;
+}
+
+function fromFirestorePollDocument(data: Record<string, unknown>): Poll {
+  const legacyParticipants = Array.isArray(data.participants)
+    ? (data.participants as Participant[]).map(stripPrivateParticipantFields)
+    : [];
+
+  return {
+    ...(data as unknown as Poll),
+    participants: legacyParticipants,
+  };
 }
 
 function sortPolls(polls: Poll[]): Poll[] {
@@ -43,23 +63,143 @@ function cacheRemotePolls(polls: Poll[]): Poll[] {
   return sorted;
 }
 
+function responseCollectionRef(pollId: string) {
+  if (!db) throw new Error('Firestore is not configured.');
+  return collection(db, POLLS_COLLECTION, pollId, RESPONSES_COLLECTION);
+}
+
+function privateContactsCollectionRef(pollId: string) {
+  if (!db) throw new Error('Firestore is not configured.');
+  return collection(db, POLLS_COLLECTION, pollId, PRIVATE_CONTACTS_COLLECTION);
+}
+
+async function fetchResponses(pollId: string): Promise<Participant[]> {
+  if (!db) return [];
+  const snapshot = await getDocs(responseCollectionRef(pollId));
+  return snapshot.docs.map(d => stripPrivateParticipantFields(d.data() as Participant));
+}
+
+async function hydratePollDocument(
+  pollId: string,
+  data: Record<string, unknown>
+): Promise<Poll> {
+  const base = fromFirestorePollDocument(data);
+  const responses = await fetchResponses(pollId);
+  return {
+    ...base,
+    participants: responses.length > 0 ? responses : base.participants,
+  };
+}
+
+async function migrateLegacyParticipantsIfNeeded(
+  pollDocs: Array<{ id: string; data: () => Record<string, unknown> }>
+): Promise<void> {
+  if (!db || !auth?.currentUser) return;
+  if (localStorage.getItem(LEGACY_MIGRATION_KEY) === 'done') return;
+
+  let hasChanges = false;
+  const batch = writeBatch(db);
+
+  for (const pollDoc of pollDocs) {
+    const data = pollDoc.data();
+    const legacyParticipants = Array.isArray(data.participants)
+      ? (data.participants as Participant[])
+      : [];
+
+    if (legacyParticipants.length === 0) continue;
+
+    hasChanges = true;
+
+    for (const participant of legacyParticipants) {
+      const publicParticipant = stripPrivateParticipantFields(participant);
+      const responseId = participant.id || ('p-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
+
+      batch.set(
+        doc(db, POLLS_COLLECTION, pollDoc.id, RESPONSES_COLLECTION, responseId),
+        {
+          ...publicParticipant,
+          id: responseId,
+        },
+        { merge: true }
+      );
+
+      if (participant.email) {
+        const contactId = 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+        batch.set(
+          doc(db, POLLS_COLLECTION, pollDoc.id, PRIVATE_CONTACTS_COLLECTION, contactId),
+          {
+            participantId: responseId,
+            email: participant.email.trim().toLowerCase(),
+            firstName: participant.firstName || '',
+            lastName: participant.lastName || '',
+            updatedAt: participant.updatedAt || new Date().toISOString(),
+          }
+        );
+      }
+    }
+
+    const cleanPoll = fromFirestorePollDocument(data);
+    batch.set(
+      doc(db, POLLS_COLLECTION, pollDoc.id),
+      toFirestorePollDocument(cleanPoll)
+    );
+  }
+
+  if (hasChanges) {
+    await batch.commit();
+  }
+
+  localStorage.setItem(LEGACY_MIGRATION_KEY, 'done');
+}
+
 async function migrateLegacyCacheIfNeeded(remotePolls: Poll[]): Promise<boolean> {
   if (!db || remotePolls.length > 0) return false;
-  if (localStorage.getItem(LEGACY_MIGRATION_KEY) === 'done') return false;
+  if (localStorage.getItem('dns_polls_firestore_migration_v1') === 'done') return false;
 
   const legacyPolls = getLocalPolls();
   if (legacyPolls.length === 0) {
-    localStorage.setItem(LEGACY_MIGRATION_KEY, 'done');
+    localStorage.setItem('dns_polls_firestore_migration_v1', 'done');
     return false;
   }
 
-  await Promise.all(
-    legacyPolls.map(poll =>
-      setDoc(doc(db, POLLS_COLLECTION, poll.id), toFirestorePoll(poll), { merge: true })
-    )
-  );
+  const batch = writeBatch(db);
 
-  localStorage.setItem(LEGACY_MIGRATION_KEY, 'done');
+  for (const poll of legacyPolls) {
+    batch.set(
+      doc(db, POLLS_COLLECTION, poll.id),
+      toFirestorePollDocument(poll),
+      { merge: true }
+    );
+
+    for (const participant of poll.participants || []) {
+      const responseId = participant.id || ('p-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
+      batch.set(
+        doc(db, POLLS_COLLECTION, poll.id, RESPONSES_COLLECTION, responseId),
+        {
+          ...stripPrivateParticipantFields(participant),
+          id: responseId,
+        },
+        { merge: true }
+      );
+
+      if (participant.email) {
+        const contactId = 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+        batch.set(
+          doc(db, POLLS_COLLECTION, poll.id, PRIVATE_CONTACTS_COLLECTION, contactId),
+          {
+            participantId: responseId,
+            email: participant.email.trim().toLowerCase(),
+            firstName: participant.firstName || '',
+            lastName: participant.lastName || '',
+            updatedAt: participant.updatedAt || new Date().toISOString(),
+          }
+        );
+      }
+    }
+  }
+
+  await batch.commit();
+  localStorage.setItem('dns_polls_firestore_migration_v1', 'done');
   return true;
 }
 
@@ -68,18 +208,21 @@ export async function fetchPollsFromApi(): Promise<Poll[]> {
 
   try {
     const snapshot = await getDocs(collection(db, POLLS_COLLECTION));
-    return cacheRemotePolls(snapshot.docs.map(d => d.data() as Poll));
+    await migrateLegacyParticipantsIfNeeded(
+      snapshot.docs.map(d => ({ id: d.id, data: () => d.data() as Record<string, unknown> }))
+    );
+
+    const polls = await Promise.all(
+      snapshot.docs.map(d => hydratePollDocument(d.id, d.data() as Record<string, unknown>))
+    );
+
+    return cacheRemotePolls(polls);
   } catch (error) {
     console.warn('Firestore fetch failed; using cached polls.', error);
     return getLocalPolls();
   }
 }
 
-/**
- * Firestore is the source of truth. localStorage is only a cache for offline/error fallback.
- * A one-time legacy migration runs only when Firestore is empty, preserving polls that were
- * created before the app was connected to Firebase.
- */
 export function subscribeToPollsFromFirestore(
   onUpdate: (polls: Poll[]) => void,
   onStatus?: (status: FirestoreSyncStatus) => void
@@ -103,6 +246,27 @@ export function subscribeToPollsFromFirestore(
     });
   };
 
+  const publishSnapshot = async (snapshot: Awaited<ReturnType<typeof getDocs>>) => {
+    const rawDocs = snapshot.docs.map(d => ({
+      id: d.id,
+      data: () => d.data() as Record<string, unknown>,
+    }));
+
+    try {
+      await migrateLegacyParticipantsIfNeeded(rawDocs);
+    } catch (error) {
+      reportError('legacy participant privacy migration', error);
+    }
+
+    const hydrated = await Promise.all(
+      snapshot.docs.map(d => hydratePollDocument(d.id, d.data() as Record<string, unknown>))
+    );
+
+    if (disposed) return;
+    onUpdate(cacheRemotePolls(hydrated));
+    onStatus?.('live');
+  };
+
   const bootstrap = async () => {
     try {
       const snapshot = await Promise.race([
@@ -114,28 +278,22 @@ export function subscribeToPollsFromFirestore(
 
       if (disposed) return;
 
-      let remotePolls = snapshot.docs.map(d => d.data() as Poll);
+      let remotePolls = snapshot.docs.map(d => fromFirestorePollDocument(d.data() as Record<string, unknown>));
 
       if (remotePolls.length === 0) {
         try {
           const migrated = await migrateLegacyCacheIfNeeded(remotePolls);
           if (migrated) {
             const afterMigration = await getDocs(collection(db, POLLS_COLLECTION));
-            remotePolls = afterMigration.docs.map(d => d.data() as Poll);
+            await publishSnapshot(afterMigration);
+            return;
           }
         } catch (error) {
-          reportError('legacy migration', error);
+          reportError('legacy cache migration', error);
         }
       }
 
-      if (disposed) return;
-
-      onUpdate(cacheRemotePolls(remotePolls));
-      onStatus?.('live');
-      console.info('[DNS Firestore] Initial read succeeded.', {
-        projectId: 'dns-polls',
-        polls: remotePolls.length,
-      });
+      await publishSnapshot(snapshot);
     } catch (error) {
       if (disposed) return;
       reportError('initial getDocs', error);
@@ -149,20 +307,11 @@ export function subscribeToPollsFromFirestore(
   const unsubscribe = onSnapshot(
     collection(db, POLLS_COLLECTION),
     snapshot => {
-      if (disposed) return;
-      const remotePolls = snapshot.docs.map(d => d.data() as Poll);
-      onUpdate(cacheRemotePolls(remotePolls));
-      onStatus?.('live');
-      console.info('[DNS Firestore] Realtime snapshot received.', {
-        projectId: 'dns-polls',
-        polls: remotePolls.length,
-      });
+      void publishSnapshot(snapshot);
     },
     error => {
       if (disposed) return;
       reportError('realtime listener', error);
-      // Do not blank or replace a successful bootstrap result just because
-      // realtime transport is temporarily unavailable.
     }
   );
 
@@ -183,7 +332,10 @@ export async function getPollFromFirestore(pollId: string): Promise<Poll | null>
     const snapshot = await getDoc(doc(db, POLLS_COLLECTION, pollId));
     if (!snapshot.exists()) return null;
 
-    const poll = snapshot.data() as Poll;
+    const poll = await hydratePollDocument(
+      pollId,
+      snapshot.data() as Record<string, unknown>
+    );
     saveLocalPoll(poll);
     return poll;
   } catch (error) {
@@ -201,22 +353,61 @@ export function subscribeToPoll(
     return () => {};
   }
 
-  return onSnapshot(
+  let basePoll: Poll | null = null;
+  let responses: Participant[] = [];
+  let disposed = false;
+
+  const emit = () => {
+    if (disposed) return;
+    if (!basePoll) {
+      onUpdate(null);
+      return;
+    }
+
+    onUpdate({
+      ...basePoll,
+      participants: responses.length > 0 ? responses : basePoll.participants,
+    });
+  };
+
+  const unsubscribePoll = onSnapshot(
     doc(db, POLLS_COLLECTION, pollId),
     snapshot => {
       if (!snapshot.exists()) {
-        onUpdate(null);
+        basePoll = null;
+        emit();
         return;
       }
-      const poll = snapshot.data() as Poll;
-      saveLocalPoll(poll);
-      onUpdate(poll);
+
+      basePoll = fromFirestorePollDocument(
+        snapshot.data() as Record<string, unknown>
+      );
+      emit();
     },
     error => {
       console.error('Firestore poll subscription failed.', error);
-      onUpdate(getLocalPolls().find(p => p.id === pollId) || null);
+      onUpdate(null);
     }
   );
+
+  const unsubscribeResponses = onSnapshot(
+    responseCollectionRef(pollId),
+    snapshot => {
+      responses = snapshot.docs.map(d =>
+        stripPrivateParticipantFields(d.data() as Participant)
+      );
+      emit();
+    },
+    error => {
+      console.error('Firestore response subscription failed.', error);
+    }
+  );
+
+  return () => {
+    disposed = true;
+    unsubscribePoll();
+    unsubscribeResponses();
+  };
 }
 
 export async function savePollToFirestore(poll: Poll): Promise<void> {
@@ -232,10 +423,13 @@ export async function savePollToFirestore(poll: Poll): Promise<void> {
 
   await setDoc(
     doc(db, POLLS_COLLECTION, updatedPoll.id),
-    toFirestorePoll(updatedPoll),
+    toFirestorePollDocument(updatedPoll),
     { merge: true }
   );
-  saveLocalPoll(updatedPoll);
+  saveLocalPoll({
+    ...updatedPoll,
+    participants: (updatedPoll.participants || []).map(stripPrivateParticipantFields),
+  });
 }
 
 export async function deletePollFromFirestore(pollId: string): Promise<void> {
@@ -244,7 +438,17 @@ export async function deletePollFromFirestore(pollId: string): Promise<void> {
     return;
   }
 
-  await deleteDoc(doc(db, POLLS_COLLECTION, pollId));
+  const [responses, contacts] = await Promise.all([
+    getDocs(responseCollectionRef(pollId)),
+    getDocs(privateContactsCollectionRef(pollId)),
+  ]);
+
+  const batch = writeBatch(db);
+  responses.docs.forEach(d => batch.delete(d.ref));
+  contacts.docs.forEach(d => batch.delete(d.ref));
+  batch.delete(doc(db, POLLS_COLLECTION, pollId));
+  await batch.commit();
+
   deleteLocalPoll(pollId);
 }
 
@@ -259,67 +463,79 @@ export async function submitParticipantVote(
   const lastName = identity.lastName.trim();
   const email = identity.email.trim().toLowerCase();
   const participantName = [firstName, lastName].filter(Boolean).join(' ');
+  const participantId = editingParticipantId ||
+    ('p-' + Date.now() + '-' + Math.random().toString(36).substring(2, 10));
 
-  const upsertParticipant = (participantsInput: Poll['participants']) => {
-    const participants = [...participantsInput];
-    const existingIndex = editingParticipantId
-      ? participants.findIndex(p => p.id === editingParticipantId)
-      : participants.findIndex(p =>
-          (p.email && p.email.trim().toLowerCase() === email) ||
-          (!p.email && p.name.trim().toLowerCase() === participantName.toLowerCase())
-        );
-
-    const participant = existingIndex >= 0
-      ? {
-          ...participants[existingIndex],
-          name: participantName,
-          firstName,
-          lastName,
-          email,
-          votes,
-          updatedAt: now,
-        }
-      : {
-          id: 'p-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-          name: participantName,
-          firstName,
-          lastName,
-          email,
-          votes,
-          updatedAt: now,
-        };
-
-    if (existingIndex >= 0) participants[existingIndex] = participant;
-    else participants.push(participant);
-
-    return participants;
+  const participant: Participant = {
+    id: participantId,
+    name: participantName,
+    firstName,
+    lastName,
+    votes,
+    updatedAt: now,
   };
 
   if (!db || !isFirebaseConfigured) {
-    const participants = upsertParticipant(poll.participants || []);
+    const participants = [...(poll.participants || [])];
+    const existingIndex = editingParticipantId
+      ? participants.findIndex(p => p.id === editingParticipantId)
+      : -1;
+
+    const localParticipant: Participant = { ...participant, email };
+
+    if (existingIndex >= 0) participants[existingIndex] = localParticipant;
+    else participants.push(localParticipant);
+
     const updated = { ...poll, participants, updatedAt: now };
     saveLocalPoll(updated);
     return updated;
   }
 
-  const pollRef = doc(db, POLLS_COLLECTION, poll.id);
-  const updated = await runTransaction(db, async transaction => {
-    const snapshot = await transaction.get(pollRef);
-    const latestPoll = snapshot.exists() ? (snapshot.data() as Poll) : poll;
-    const participants = upsertParticipant(latestPoll.participants || []);
+  const batch = writeBatch(db);
+  batch.set(
+    doc(db, POLLS_COLLECTION, poll.id, RESPONSES_COLLECTION, participantId),
+    participant,
+    { merge: Boolean(editingParticipantId) }
+  );
 
-    const nextPoll: Poll = {
-      ...latestPoll,
-      participants,
+  const contactId = 'c-' + Date.now() + '-' + Math.random().toString(36).substring(2, 12);
+  batch.set(
+    doc(db, POLLS_COLLECTION, poll.id, PRIVATE_CONTACTS_COLLECTION, contactId),
+    {
+      participantId,
+      email,
+      firstName,
+      lastName,
       updatedAt: now,
-    };
+    }
+  );
 
-    transaction.set(pollRef, toFirestorePoll(nextPoll), { merge: true });
-    return nextPoll;
-  });
+  batch.update(doc(db, POLLS_COLLECTION, poll.id), { updatedAt: now });
+  await batch.commit();
 
+  const participants = [...(poll.participants || [])];
+  const existingIndex = editingParticipantId
+    ? participants.findIndex(p => p.id === editingParticipantId)
+    : -1;
+
+  if (existingIndex >= 0) participants[existingIndex] = participant;
+  else participants.push(participant);
+
+  const updated: Poll = { ...poll, participants, updatedAt: now };
   saveLocalPoll(updated);
   return updated;
+}
+
+export async function getPrivateContactsForPoll(
+  pollId: string
+): Promise<PrivateParticipantContact[]> {
+  if (!db || !isFirebaseConfigured || !auth?.currentUser) return [];
+
+  const snapshot = await getDocs(privateContactsCollectionRef(pollId));
+  return snapshot.docs.map(d => ({
+    id: d.id,
+    ...(d.data() as Omit<PrivateParticipantContact, 'id'>),
+  }));
 }
 
 export async function finalizePollSlotFirestore(poll: Poll, slotId: string): Promise<Poll> {
@@ -338,14 +554,18 @@ export async function finalizePollSlotFirestore(poll: Poll, slotId: string): Pro
   const pollRef = doc(db, POLLS_COLLECTION, poll.id);
   const updated = await runTransaction(db, async transaction => {
     const snapshot = await transaction.get(pollRef);
-    const latestPoll = snapshot.exists() ? (snapshot.data() as Poll) : poll;
+    const latestPoll = snapshot.exists()
+      ? fromFirestorePollDocument(snapshot.data() as Record<string, unknown>)
+      : poll;
+
     const nextPoll: Poll = {
       ...latestPoll,
+      participants: poll.participants,
       finalizedSlotId: latestPoll.finalizedSlotId === slotId ? undefined : slotId,
       updatedAt: now,
     };
 
-    transaction.set(pollRef, toFirestorePoll(nextPoll), { merge: true });
+    transaction.set(pollRef, toFirestorePollDocument(nextPoll), { merge: true });
     return nextPoll;
   });
 
