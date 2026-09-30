@@ -38,7 +38,8 @@ export const PollView: React.FC<PollViewProps> = ({ poll, onPollUpdated, onBackT
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [copiedQuick, setCopiedQuick] = useState(false);
-  const [isInvitee, setIsInvitee] = useState(isInviteeMode);
+  const [previewInvitee, setPreviewInvitee] = useState(false);
+  const isInvitee = isInviteeMode || previewInvitee;
   const [conferenceUrl, setConferenceUrl] = useState(poll.conferenceUrl || '');
   const [conferenceSaved, setConferenceSaved] = useState(false);
 
@@ -109,7 +110,7 @@ export const PollView: React.FC<PollViewProps> = ({ poll, onPollUpdated, onBackT
           {!isInvitee ? (
             <>
               <button
-                onClick={() => setIsInvitee(true)}
+                onClick={() => setPreviewInvitee(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-sm text-xs font-semibold transition-all"
                 title={t('switchInviteeMode', currentLang)}
               >
@@ -153,14 +154,14 @@ export const PollView: React.FC<PollViewProps> = ({ poll, onPollUpdated, onBackT
                 <span>{t('btnSharePoll', currentLang)}</span>
               </button>
             </>
-          ) : (
+          ) : !isInviteeMode ? (
             <button
-              onClick={() => setIsInvitee(false)}
+              onClick={() => setPreviewInvitee(false)}
               className="text-xs text-slate-600 hover:text-dns-primary font-semibold underline transition-colors"
             >
               {t('switchOrganizerMode', currentLang)}
             </button>
-          )}
+          ) : null}
         </div>
       </div>
 
