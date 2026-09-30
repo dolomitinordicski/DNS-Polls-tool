@@ -664,7 +664,6 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
             id="create-poll-submit-btn"
             className="flex items-center gap-2 px-5 py-2.5 bg-dns-primary text-white hover:bg-dns-deep font-bold text-xs rounded-sm shadow-xs transition-all cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 text-white" />
             <span>{t('btnCreateSubmit', currentLang)}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
