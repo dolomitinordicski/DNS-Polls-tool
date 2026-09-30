@@ -15,7 +15,7 @@ import { CreatePollForm } from './components/CreatePollForm';
 import { PollView } from './components/PollView';
 import { PollCalendarView } from './components/PollCalendarView';
 import { ShareModal } from './components/ShareModal';
-import { Calendar as CalendarIcon, ShieldCheck } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar'>('list');
@@ -235,38 +235,10 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="bg-dns-primary py-4 px-4 text-center text-xs text-white/70 font-alt">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="w-[128px] h-[37px] shrink-0 flex items-center overflow-hidden">
-              <img
-                src="./dns-logo-negativ.png"
-                alt=""
-                aria-hidden="true"
-                width="128"
-                height="37"
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.currentTarget.style.visibility = 'hidden';
-                }}
-              />
-            </span>
-            <span className="font-heading font-bold text-white text-sm">DNS Polls</span>
-            <span className="text-[10px] bg-dns-teal/40 px-2 py-0.5 rounded-sm text-slate-200 font-mono">
-              Dolomiti NordicSki
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1.5 text-slate-200">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              {t('footerTransparency', currentLang)}
-            </span>
-          </div>
-
-          <p className="text-[11px] text-slate-300">
-            &copy; {new Date().getFullYear()} DNS Polls • Dolomiti NordicSki.
-          </p>
+      <footer className="bg-dns-primary px-4 md:px-[1.8rem] py-3 font-alt">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] md:text-[11px] uppercase tracking-[.04em] text-white/65">
+          <span>Dolomiti NordicSki</span>
+          <span>DNS Polls · © {new Date().getFullYear()}</span>
         </div>
       </footer>
     </div>
