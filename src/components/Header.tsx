@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar as CalendarIcon, PlusCircle, List, Share2 } from 'lucide-react';
+import { Calendar as CalendarIcon, PlusCircle, List, LogOut, Share2 } from 'lucide-react';
 import { Language, t } from '../utils/i18n';
 
 interface HeaderProps {
@@ -11,6 +11,9 @@ interface HeaderProps {
   onQuickShareApp?: () => void;
   isFirestoreConnected?: boolean;
   isInviteeMode?: boolean;
+  adminEmail?: string | null;
+  onSignOut?: () => void;
+  isAdminLocked?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,7 +23,10 @@ export const Header: React.FC<HeaderProps> = ({
   onLanguageChange,
   activePollTitle,
   onQuickShareApp,
-  isInviteeMode = false
+  isInviteeMode = false,
+  adminEmail,
+  onSignOut,
+  isAdminLocked = false
 }) => {
   return (
     <header className="sticky top-0 z-40 text-white font-heading shadow-[0_1px_0_rgba(255,255,255,.08)]">
@@ -36,12 +42,29 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="font-bold">DNS</span><span className="font-normal ml-2">POLLS</span>
               </div>
               <div className="font-alt text-[12px] md:text-[13px] font-normal uppercase tracking-[.035em] leading-tight text-dns-soft mt-1 truncate">
-                {isInviteeMode ? t('inviteeHeaderTag', currentLang) : t('tagline', currentLang)}
+                {isAdminLocked
+                  ? (currentLang === 'de' ? 'Geschützter Verwaltungsbereich' : 'Area amministrativa protetta')
+                  : isInviteeMode ? t('inviteeHeaderTag', currentLang) : t('tagline', currentLang)}
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {!isInviteeMode && adminEmail && (
+              <div className="hidden md:flex items-center gap-2 mr-2 text-[10px] text-white/75">
+                <span className="max-w-[180px] truncate">{adminEmail}</span>
+                {onSignOut && (
+                  <button
+                    type="button"
+                    onClick={onSignOut}
+                    className="p-1.5 rounded-full bg-white/10 hover:bg-white/15 text-white"
+                    title={currentLang === 'de' ? 'Abmelden' : 'Esci'}
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
             <div className="flex items-center gap-1">
               {(['de','it'] as Language[]).map(lang => (
                 <button
@@ -57,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {!isInviteeMode && (
+      {!isInviteeMode && !isAdminLocked && (
         <div className="bg-dns-teal px-4 md:px-[1.8rem]">
           <div className="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto">
             <button onClick={() => onNavigate('list')} className={`px-3 py-2.5 text-[10px] uppercase tracking-[.06em] font-semibold border-b-[3px] whitespace-nowrap ${currentView==='list'?'text-white border-white':'text-white/60 border-transparent hover:text-white'}`}>
