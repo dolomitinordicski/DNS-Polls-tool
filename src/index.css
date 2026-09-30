@@ -47,8 +47,8 @@ h1,h2,h3,h4,h5,h6{font-family:var(--font-heading)}
   .dns-section-title { @apply font-heading text-[11px] font-bold uppercase tracking-[.07em] text-dns-primary; }
   .dns-secondary { @apply font-alt text-[10px] text-[#5a7f8a]; }
   .dns-btn { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-[11px] font-semibold tracking-[.02em] transition-colors; }
-  .dns-btn-primary { @apply dns-btn bg-dns-primary text-white hover:bg-dns-teal; }
-  .dns-btn-secondary { @apply dns-btn bg-white text-dns-primary border border-[rgba(65,116,131,.22)] hover:bg-dns-primary/[.04]; }
+  .dns-btn-primary { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-[11px] font-semibold tracking-[.02em] transition-colors bg-dns-primary text-white hover:bg-dns-teal; }
+  .dns-btn-secondary { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-[11px] font-semibold tracking-[.02em] transition-colors bg-white text-dns-primary border border-[rgba(65,116,131,.22)] hover:bg-dns-primary/[.04]; }
   .dns-input { @apply bg-white border border-[rgba(65,116,131,.22)] rounded-md px-3 py-2 text-[12px] text-dns-primary focus:outline-none focus:border-dns-teal focus:ring-1 focus:ring-dns-teal/15; }
 }
 
