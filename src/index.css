@@ -1,83 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --color-dns-primary: #0D4D5E;
   --color-dns-deep: #083845;
-  --color-dns-teal: #336979;
-  --color-dns-soft: #8EBDC4;
-  --color-dns-frosted: #E3EEF2;
-  --color-dns-bg: #E5EFF3;
-
+  --color-dns-teal: #417483;
+  --color-dns-soft: #AAD0D1;
+  --color-dns-frosted: #E0F0F0;
+  --color-dns-bg: #f4f8f9;
   --font-heading: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
-  --font-body: 'Roboto', system-ui, -apple-system, sans-serif;
-  --font-sans: 'Roboto', system-ui, -apple-system, sans-serif;
+  --font-body: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-alt: 'Roboto', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
 }
 
-:root {
-  /* Palette Dolomiti NordicSki - Frosted Ice Theme */
-  --dns-primary: #0D4D5E; /* Ottanio Header */
-  --dns-deep: #083845;    /* Blu Petrolio Scuro */
-  --dns-teal: #336979;    /* Ottanio Medio */
-  --dns-soft: #8EBDC4;    /* Accento Soft */
-  --dns-frosted: #E3EEF2; /* Ghiaccio Chiaro (Frosted Ice Canvas) */
-  --dns-bg: #E5EFF3;      /* Frosted Ice App Background */
-  --dns-card-bg: #FFFFFF; /* White Cards */
-
-  /* Tipografia */
-  --font-heading: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
-  --font-body: 'Roboto', system-ui, -apple-system, sans-serif;
+:root{
+  --dns-primary:#0D4D5E;
+  --dns-deep:#083845;
+  --dns-teal:#417483;
+  --dns-soft:#AAD0D1;
+  --dns-frosted:#E0F0F0;
+  --dns-bg:#f4f8f9;
+  --dns-card:#fff;
+  --dns-border:rgba(65,116,131,.20);
+  --font-heading:'Be Vietnam Pro',system-ui,-apple-system,sans-serif;
+  --font-body:'Be Vietnam Pro',system-ui,-apple-system,sans-serif;
+  --font-alt:'Roboto',system-ui,-apple-system,sans-serif;
 }
 
-body {
-  font-family: var(--font-body);
-  background-color: var(--dns-bg);
-  color: #0F2D37;
-  margin: 0;
-  min-height: 100vh;
+*{box-sizing:border-box}
+html{background:var(--dns-bg)}
+body{
+  margin:0;
+  min-height:100vh;
+  font-family:var(--font-body);
+  background:var(--dns-bg);
+  color:var(--dns-primary);
+}
+h1,h2,h3,h4,h5,h6{font-family:var(--font-heading)}
+.font-alt{font-family:var(--font-alt)}
+
+@layer components {
+  .dns-shell { @apply max-w-6xl mx-auto px-4 md:px-[1.8rem]; }
+  .dns-card { @apply bg-white rounded-[10px] shadow-[0_1px_4px_rgba(13,77,94,.07)] border border-[rgba(65,116,131,.14)]; }
+  .dns-kpi { @apply bg-white rounded-[10px] border-t-[3px] border-t-dns-soft shadow-[0_1px_4px_rgba(13,77,94,.07)] p-4; }
+  .dns-section-title { @apply font-heading text-[11px] font-bold uppercase tracking-[.07em] text-dns-primary; }
+  .dns-secondary { @apply font-alt text-[10px] text-[#5a7f8a]; }
+  .dns-btn { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-[11px] font-semibold tracking-[.02em] transition-colors; }
+  .dns-btn-primary { @apply dns-btn bg-dns-primary text-white hover:bg-dns-teal; }
+  .dns-btn-secondary { @apply dns-btn bg-white text-dns-primary border border-[rgba(65,116,131,.22)] hover:bg-dns-primary/[.04]; }
+  .dns-input { @apply bg-white border border-[rgba(65,116,131,.22)] rounded-md px-3 py-2 text-[12px] text-dns-primary focus:outline-none focus:border-dns-teal focus:ring-1 focus:ring-dns-teal/15; }
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
+input[type="text"],input[type="email"],input[type="date"],input[type="url"],textarea,select{
+  font-family:var(--font-alt);
+  background:#fff!important;
+  color:#0D4D5E!important;
+  border-color:rgba(65,116,131,.22)!important;
+}
+input::placeholder,textarea::placeholder{color:#78919a!important}
+input:focus,textarea:focus,select:focus{
+  background:#fff!important;
+  border-color:#417483!important;
 }
 
-/* Default styling for input fields in light gray */
-input[type="text"],
-input[type="email"],
-input[type="date"],
-textarea,
-select {
-  background-color: #F1F5F9 !important; /* light gray bg-slate-100 */
-  color: #0F172A !important;             /* text-slate-900 */
-  border-color: #CBD5E1 !important;        /* border-slate-300 */
-}
-
-input[type="text"]::placeholder,
-input[type="email"]::placeholder,
-textarea::placeholder {
-  color: #64748B !important;             /* placeholder:text-slate-500 */
-}
-
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="date"]:focus,
-textarea:focus,
-select:focus {
-  background-color: #FFFFFF !important;
-  border-color: #0D4D5E !important;
-}
-
-/* Custom scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #E5EFF3;
-}
-::-webkit-scrollbar-thumb {
-  background: #336979;
-  border-radius: 2px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #0D4D5E;
-}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:#f4f8f9}
+::-webkit-scrollbar-thumb{background:#AAD0D1;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#417483}
