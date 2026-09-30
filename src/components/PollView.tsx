@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Poll, VoteStatus } from '../types';
+import { ParticipantIdentity, Poll, VoteStatus } from '../types';
 import { formatDate, getSlotVoteSummary, getTopVotedSlot } from '../utils/dateUtils';
 import { generateICalFile } from '../utils/storage';
 import { getPollShareUrl, submitParticipantVote, finalizePollSlotFirestore, deletePollFromFirestore, savePollToFirestore } from '../utils/firebaseStorage';
@@ -49,8 +49,8 @@ export const PollView: React.FC<PollViewProps> = ({ poll, onPollUpdated, onBackT
   const topSlotId = getTopVotedSlot(poll.slots, poll.participants);
   const topSlot = poll.slots.find(s => s.id === (poll.finalizedSlotId || topSlotId));
 
-  const handleVoteSubmit = async (participantName: string, votes: Record<string, VoteStatus>) => {
-    const updated = await submitParticipantVote(poll, participantName, votes);
+  const handleVoteSubmit = async (participant: ParticipantIdentity, votes: Record<string, VoteStatus>) => {
+    const updated = await submitParticipantVote(poll, participant, votes);
     onPollUpdated(updated);
   };
 

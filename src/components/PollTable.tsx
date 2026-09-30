@@ -1,14 +1,13 @@
-import React, { useState, useMemo } from 'react';
-import { Poll, VoteStatus, Participant } from '../types';
+import React, { useState } from 'react';
+import { Participant, ParticipantIdentity, Poll, VoteStatus } from '../types';
 import { formatDate, getSlotVoteSummary, getTopVotedSlot } from '../utils/dateUtils';
 import { Language, t } from '../utils/i18n';
-import { getAutocompleteData, saveAutocompleteEntry } from '../utils/autocompleteStore';
 import { sendParticipantVoteNotification } from '../utils/emailNotifier';
 import { Check, X, HelpCircle, UserPlus, Trophy, Clock, CheckCircle2, AlertCircle, Mail, Send } from 'lucide-react';
 
 interface PollTableProps {
   poll: Poll;
-  onVoteSubmit: (participantName: string, votes: Record<string, VoteStatus>) => void;
+  onVoteSubmit: (participant: ParticipantIdentity, votes: Record<string, VoteStatus>) => void | Promise<void>;
   onFinalizeSlot?: (slotId: string) => void;
   isOrganizerView?: boolean;
   currentLang?: Language;
@@ -21,15 +20,14 @@ export const PollTable: React.FC<PollTableProps> = ({
   isOrganizerView = false,
   currentLang = 'de'
 }) => {
-  const [participantName, setParticipantName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [participantEmail, setParticipantEmail] = useState('');
   const [myVotes, setMyVotes] = useState<Record<string, VoteStatus>>({});
   const [editingParticipantId, setEditingParticipantId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [emailStatusMsg, setEmailStatusMsg] = useState<string | null>(null);
-
-  // Autocomplete suggestions
-  const autocomplete = useMemo(() => getAutocompleteData([poll]), [poll]);
 
   const topSlotId = getTopVotedSlot(poll.slots, poll.participants);
 
@@ -61,9 +59,17 @@ export const PollTable: React.FC<PollTableProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanName = participantName.trim();
-    if (!cleanName) {
-      setErrorMsg(t('errEnterName', currentLang));
+    const cleanFirstName = firstName.trim();
+    const cleanLastName = lastName.trim();
+    const cleanEmail = participantEmail.trim().toLowerCase();
+    const cleanName = [cleanFirstName, cleanLastName].filter(Boolean).join(' ');
+
+    if (!cleanFirstName || !cleanLastName) {
+      setErrorMsg(currentLang === 'de' ? 'Bitte Vor- und Nachname eingeben.' : 'Inserisci nome e cognome.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setErrorMsg(currentLang === 'de' ? 'Bitte eine gültige E-Mail-Adresse eingeben.' : 'Inserisci un indirizzo e-mail valido.');
       return;
     }
     setErrorMsg('');
@@ -74,11 +80,11 @@ export const PollTable: React.FC<PollTableProps> = ({
       completeVotes[s.id] = myVotes[s.id] || 'no';
     });
 
-    // Save participant name for autocompletion
-    saveAutocompleteEntry('participants', cleanName);
-
-    // Save response to state & database
-    onVoteSubmit(cleanName, completeVotes);
+    // The e-mail stays scoped to this poll response and is not promoted to a reusable contact list.
+    await onVoteSubmit(
+      { firstName: cleanFirstName, lastName: cleanLastName, email: cleanEmail },
+      completeVotes
+    );
     setSubmitSuccess(true);
 
     // Send email notification to management@dolomitinordicski.com
@@ -96,26 +102,25 @@ export const PollTable: React.FC<PollTableProps> = ({
 
     // Reset input if new participant
     if (!editingParticipantId) {
-      setParticipantName('');
+      setFirstName('');
+      setLastName('');
+      setParticipantEmail('');
       setMyVotes({});
     }
   };
 
   const handleEditParticipant = (p: Participant) => {
+    const legacyParts = p.name.trim().split(/\s+/);
+    const legacyFirstName = legacyParts.shift() || '';
     setEditingParticipantId(p.id);
-    setParticipantName(p.name);
+    setFirstName(p.firstName || legacyFirstName);
+    setLastName(p.lastName || legacyParts.join(' '));
+    setParticipantEmail(p.email || '');
     setMyVotes({ ...p.votes });
   };
 
   return (
     <div className="space-y-6 font-body">
-      {/* Participants Autocomplete Datalist */}
-      <datalist id="participants-list">
-        {autocomplete.participants.map((pName, idx) => (
-          <option key={`pname-${idx}`} value={pName} />
-        ))}
-      </datalist>
-
       {/* Table Outer Container */}
       <div className="bg-white border border-slate-300 rounded-sm shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
@@ -123,7 +128,7 @@ export const PollTable: React.FC<PollTableProps> = ({
             <thead>
               {/* Header Row 1: Time Slots */}
               <tr className="bg-slate-100 border-b border-slate-300">
-                <th className="p-4 min-w-[200px] sm:w-1/4 bg-slate-100 sticky left-0 z-20 border-r border-slate-300 text-slate-800">
+                <th className="p-4 min-w-[250px] sm:w-1/4 bg-slate-100 sticky left-0 z-20 border-r border-slate-300 text-slate-800">
                   <div className="flex items-center gap-2">
                     <span className="font-heading font-extrabold text-sm text-[#083845]">{t('participantsHeader', currentLang)}</span>
                     <span className="text-[11px] text-slate-600 font-normal">
@@ -279,15 +284,40 @@ export const PollTable: React.FC<PollTableProps> = ({
                       <UserPlus className="w-4 h-4 text-dns-primary" />
                       {editingParticipantId ? t('editResponsesLabel', currentLang) : t('enterNameLabel', currentLang)}
                     </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        autoComplete="given-name"
+                        placeholder={currentLang === 'de' ? 'Vorname' : 'Nome'}
+                        value={firstName}
+                        onChange={e => setFirstName(e.target.value)}
+                        className="w-full bg-white border border-slate-300 focus:border-dns-primary rounded-sm px-3 py-1.5 text-slate-900 text-xs focus:outline-none placeholder:text-slate-500"
+                        id="participant-first-name-input"
+                      />
+                      <input
+                        type="text"
+                        autoComplete="family-name"
+                        placeholder={currentLang === 'de' ? 'Nachname' : 'Cognome'}
+                        value={lastName}
+                        onChange={e => setLastName(e.target.value)}
+                        className="w-full bg-white border border-slate-300 focus:border-dns-primary rounded-sm px-3 py-1.5 text-slate-900 text-xs focus:outline-none placeholder:text-slate-500"
+                        id="participant-last-name-input"
+                      />
+                    </div>
                     <input
-                      type="text"
-                      list="participants-list"
-                      placeholder={t('namePlaceholder', currentLang)}
-                      value={participantName}
-                      onChange={e => setParticipantName(e.target.value)}
-                      className="w-full bg-slate-100 border border-slate-300 focus:border-dns-primary rounded-sm px-3 py-1.5 text-slate-900 text-xs focus:outline-none placeholder:text-slate-500"
-                      id="participant-name-input"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="E-Mail"
+                      value={participantEmail}
+                      onChange={e => setParticipantEmail(e.target.value)}
+                      className="w-full bg-white border border-slate-300 focus:border-dns-primary rounded-sm px-3 py-1.5 text-slate-900 text-xs focus:outline-none placeholder:text-slate-500"
+                      id="participant-email-input"
                     />
+                    <p className="text-[10px] leading-snug text-slate-500">
+                      {currentLang === 'de'
+                        ? 'Die E-Mail-Adresse wird nur für diese Umfrage verwendet und nicht automatisch in andere Kontaktlisten übernommen.'
+                        : 'L’indirizzo e-mail viene utilizzato solo per questo sondaggio e non viene aggiunto automaticamente ad altre liste di contatti.'}
+                    </p>
 
                     {/* Quick Select All Buttons */}
                     <div className="flex gap-2 pt-0.5">

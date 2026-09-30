@@ -11,9 +11,18 @@ export interface ParticipantVote {
   status: VoteStatus;
 }
 
+export interface ParticipantIdentity {
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
 export interface Participant {
   id: string;
-  name: string;
+  name: string; // Display name kept for backwards compatibility with existing polls
+  firstName?: string;
+  lastName?: string;
+  email?: string; // Scoped to this poll only; never promoted automatically to contact presets
   votes: Record<string, VoteStatus>; // slotId -> VoteStatus
   updatedAt: string;
 }
