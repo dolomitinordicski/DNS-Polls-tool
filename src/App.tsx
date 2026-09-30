@@ -133,7 +133,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#E5EFF3] text-slate-900 flex flex-col font-body selection:bg-slate-300 selection:text-slate-900">
+    <div className="min-h-screen bg-dns-bg text-dns-primary flex flex-col font-body selection:bg-dns-soft selection:text-dns-primary">
       {/* Header */}
       <Header
         currentView={currentView}
@@ -147,7 +147,7 @@ export default function App() {
       />
 
       {/* Main Content Area on Frosted Ice */}
-      <main className="flex-1 pb-16">
+      <main className="flex-1 pb-14">
         {currentView === 'list' && !hasInitialPolls && (
           <div className="max-w-6xl mx-auto px-4 py-8">
             <div className="min-h-[420px] bg-white border border-slate-300 rounded-sm p-6 shadow-xs">
@@ -235,7 +235,7 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="bg-dns-primary border-t border-dns-teal/50 py-6 px-4 text-center text-xs text-slate-200 space-y-3 font-body">
+      <footer className="bg-dns-primary py-4 px-4 text-center text-xs text-white/70 font-alt">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="w-[128px] h-[37px] shrink-0 flex items-center overflow-hidden">
