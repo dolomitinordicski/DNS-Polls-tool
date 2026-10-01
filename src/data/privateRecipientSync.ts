@@ -66,7 +66,27 @@ export async function signInPrivateRecipientSync(): Promise<User> {
     throw new Error('Firebase private data sync is unavailable.');
   }
 
-  const result = await signInWithPopup(auth, privateDataAuthProvider);
+  let result;
+
+  try {
+    result = await signInWithPopup(auth, privateDataAuthProvider);
+  } catch (error) {
+    const code = (error as { code?: string })?.code || '';
+
+    if (code === 'auth/operation-not-allowed') {
+      throw new Error(
+        'Google Authentication non è ancora abilitato nel progetto Firebase dns-polls.',
+      );
+    }
+
+    if (code === 'auth/unauthorized-domain') {
+      throw new Error(
+        'dolomitinordicski.github.io non è ancora autorizzato in Firebase Authentication.',
+      );
+    }
+
+    throw error;
+  }
 
   if (!isAuthorizedPrivateDataUser(result.user)) {
     await signOut(auth);
