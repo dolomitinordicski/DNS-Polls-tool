@@ -11,7 +11,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@dolomitinordicski/dns-shared-data": "github:dolomitinordicski/dns-shared-data#202c9ff7253eba4fa93454919ef235399c0dd553",
+    "@dolomitinordicski/dns-shared-data": "github:dolomitinordicski/dns-shared-data#6c9aba74fce40f7813beb6d53c37a6d744d11eba",
     "firebase": "^12.17.1",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
