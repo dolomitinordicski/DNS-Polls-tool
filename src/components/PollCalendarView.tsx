@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   Calendar as CalendarIcon,
@@ -17,6 +17,7 @@ import {
   getTopVotedSlot,
 } from '../utils/dateUtils';
 import { Language, t } from '../utils/i18n';
+import { useAccessibleDialog } from '../lib/useAccessibleDialog';
 
 interface PollCalendarViewProps {
   polls: Poll[];
@@ -79,6 +80,13 @@ export const PollCalendarView: React.FC<PollCalendarViewProps> = ({
     dateStr: string;
     events: CalendarEvent[];
   } | null>(null);
+  const dayDialogRef = useRef<HTMLElement>(null);
+
+  useAccessibleDialog({
+    isOpen: Boolean(selectedDayEvents),
+    onClose: () => setSelectedDayEvents(null),
+    dialogRef: dayDialogRef,
+  });
 
   useEffect(() => {
     if (selectedPollId) setActivePollFilter(selectedPollId);
@@ -479,16 +487,19 @@ export const PollCalendarView: React.FC<PollCalendarViewProps> = ({
 
       {selectedDayEvents && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-dns-deep/55 p-3 backdrop-blur-sm sm:p-5"
           role="presentation"
-          onClick={() => setSelectedDayEvents(null)}
+          onMouseDown={event => {
+            if (event.currentTarget === event.target) setSelectedDayEvents(null);
+          }}
         >
           <section
+            ref={dayDialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="calendar-day-dialog-title"
-            className="dns-card max-h-[86vh] w-full max-w-xl overflow-hidden"
-            onClick={event => event.stopPropagation()}
+            tabIndex={-1}
+            className="dns-card max-h-[90dvh] w-full max-w-xl overflow-hidden outline-none"
           >
             <div className="flex items-start justify-between gap-4 border-b border-dns-mid/10 p-5">
               <div>

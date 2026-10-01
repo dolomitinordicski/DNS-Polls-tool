@@ -229,7 +229,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
             ? 'border-emerald-700/20 bg-emerald-50 text-emerald-800'
             : '',
           lifecycle === 'expired'
-            ? 'border-slate-300 bg-slate-100 text-slate-600'
+            ? 'border-dns-mid/15 bg-dns-bg text-dns-muted'
             : '',
         ].join(' ')}
       >
@@ -429,6 +429,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
                 />
                 <input
                   type="search"
+                  aria-label={t('searchPlaceholder', currentLang)}
                   value={searchTerm}
                   onChange={event => setSearchTerm(event.target.value)}
                   placeholder={t('searchPlaceholder', currentLang)}
@@ -535,23 +536,26 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
                   return (
                     <div
                       key={poll.id}
-                      onClick={() => onSelectPoll(poll)}
                       data-dns-hover
                       data-dns-reveal
                       data-dns-reveal-index={index}
                       data-dns-reveal-stagger="compact"
-                      className="grid cursor-pointer grid-cols-[118px_minmax(260px,1.45fr)_minmax(150px,.75fr)_100px_minmax(190px,.8fr)_176px] items-center gap-4 px-5 py-4 outline-none hover:bg-dns-bg/65 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-dns-mid md:px-6"
+                      className="grid grid-cols-[118px_minmax(260px,1.45fr)_minmax(150px,.75fr)_100px_minmax(190px,.8fr)_176px] items-center gap-4 px-5 py-4 hover:bg-dns-bg/65 md:px-6"
                     >
                       <div>{renderStatus(poll)}</div>
 
-                      <div className="min-w-0">
-                        <div className="truncate text-[13px] font-semibold text-dns-deep">
+                      <button
+                        type="button"
+                        onClick={() => onSelectPoll(poll)}
+                        className="min-w-0 rounded-md border-0 bg-transparent p-0 text-left"
+                      >
+                        <div className="truncate text-[13px] font-semibold text-dns-deep hover:underline">
                           {poll.title}
                         </div>
                         <div className="mt-1 truncate font-alt text-[10px] text-dns-muted">
                           {poll.location || copy.noLocation}
                         </div>
-                      </div>
+                      </button>
 
                       <div className="truncate font-alt text-[11px] text-dns-deep">
                         {poll.organizerName}

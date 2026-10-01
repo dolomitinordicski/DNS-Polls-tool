@@ -4,7 +4,7 @@ import {
   initDNSNavigationRuntime,
   type DNSNavigationRuntimeHandle,
 } from '@dolomitinordicski/dns-shared-data/ui/navigation';
-import { Calendar as CalendarIcon, PlusCircle, List, LogOut, Share2 } from 'lucide-react';
+import { Calendar as CalendarIcon, PlusCircle, List, Share2 } from 'lucide-react';
 import { Language, t } from '../utils/i18n';
 import { AccessibilityMount } from './AccessibilityMount';
 
@@ -18,9 +18,6 @@ interface HeaderProps {
   onQuickShareApp?: () => void;
   isFirestoreConnected?: boolean;
   isInviteeMode?: boolean;
-  adminEmail?: string | null;
-  onSignOut?: () => void;
-  isAdminLocked?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -32,9 +29,6 @@ export const Header: React.FC<HeaderProps> = ({
   activePollTitle,
   onQuickShareApp,
   isInviteeMode = false,
-  adminEmail,
-  onSignOut,
-  isAdminLocked = false
 }) => {
   const headerRef = useRef<HTMLElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -68,13 +62,11 @@ export const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     navigationRuntimeRef.current?.setActiveSection(currentView);
     navigationRuntimeRef.current?.refresh();
-  }, [currentView, activePollTitle, isInviteeMode, isAdminLocked]);
+  }, [currentView, activePollTitle, isInviteeMode]);
 
-  const subtitle = isAdminLocked
-    ? (currentLang === 'de' ? 'Geschützter Verwaltungsbereich' : 'Area amministrativa protetta')
-    : isInviteeMode
-      ? t('inviteeHeaderTag', currentLang)
-      : t('tagline', currentLang);
+  const subtitle = isInviteeMode
+    ? t('inviteeHeaderTag', currentLang)
+    : t('tagline', currentLang);
 
   return (
     <>
@@ -82,22 +74,22 @@ export const Header: React.FC<HeaderProps> = ({
         ref={headerRef}
         className="sticky top-0 z-30 bg-dns-primary text-white shadow-[var(--dns-header-shadow)]"
       >
-        <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-4 px-4 py-3.5 md:px-[1.8rem]">
+        <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-2 px-4 py-3.5 sm:gap-4 md:px-[1.8rem]">
           <button
             type="button"
             onClick={() => !isInviteeMode && onNavigate('list')}
             disabled={isInviteeMode}
-            className="flex min-w-0 items-center gap-4 border-0 bg-transparent p-0 text-left text-white disabled:cursor-default"
+            className="flex min-w-0 items-center gap-2 border-0 bg-transparent p-0 text-left text-white disabled:cursor-default sm:gap-4"
             data-dns-press={!isInviteeMode ? '' : undefined}
             aria-label={!isInviteeMode ? t('navMyPolls', currentLang) : undefined}
           >
             <img
               src="./logo1.png"
               alt="Dolomiti NordicSki"
-              className="h-8 w-auto shrink-0 object-contain md:h-10"
+              className="h-7 w-auto shrink-0 object-contain sm:h-8 md:h-10"
             />
             <div className="min-w-0">
-              <div className="whitespace-nowrap text-[20px] uppercase leading-none tracking-[.035em] text-white md:text-[22px]">
+              <div className="whitespace-nowrap text-[17px] uppercase leading-none tracking-[.035em] text-white sm:text-[20px] md:text-[22px]">
                 <span className="font-bold">DNS</span>
                 <span className="ml-2 font-normal">POLLS</span>
               </div>
@@ -107,25 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </button>
 
-          <div className="flex shrink-0 items-center gap-3">
-            {!isInviteeMode && adminEmail && (
-              <div className="hidden items-center gap-2 text-[10px] text-white/75 md:flex">
-                <span className="max-w-[180px] truncate">{adminEmail}</span>
-                {onSignOut && (
-                  <button
-                    type="button"
-                    onClick={onSignOut}
-                    data-dns-press
-                    data-dns-hover
-                    className="border-0 bg-transparent p-1 text-white/75 hover:text-white"
-                    title={currentLang === 'de' ? 'Abmelden' : 'Esci'}
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            )}
-
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <AccessibilityMount language={currentLang} />
 
             <div className="flex gap-2 text-[10px] font-bold uppercase tracking-[.06em]">
@@ -173,7 +147,7 @@ export const Header: React.FC<HeaderProps> = ({
           <span ref={progressBarRef} className="dns-scroll-progress-bar" />
         </div>
 
-        {!isInviteeMode && !isAdminLocked && (
+        {!isInviteeMode && (
           <div className="dns-tab-nav-inner">
             <button
               type="button"
@@ -222,6 +196,7 @@ export const Header: React.FC<HeaderProps> = ({
                 data-dns-hover
                 className="p-2 text-white/70 hover:text-white"
                 title={t('shareApp', currentLang)}
+                aria-label={t('shareApp', currentLang)}
               >
                 <Share2 className="h-4 w-4" />
               </button>

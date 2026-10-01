@@ -1,22 +1,26 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AlertCircle,
+  AlignLeft,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Mail,
+  MapPin,
+  Plus,
+  Save,
+  Trash2,
+  User,
+  X,
+} from 'lucide-react';
 import { Poll, TimeSlot } from '../types';
 import { savePollToFirestore } from '../utils/firebaseStorage';
 import { Language, t } from '../utils/i18n';
-import { getAutocompleteData, saveAutocompleteEntry } from '../utils/autocompleteStore';
-import { 
-  X, 
-  Calendar, 
-  Clock, 
-  Plus, 
-  Trash2, 
-  Save, 
-  CheckCircle2, 
-  AlertCircle, 
-  MapPin, 
-  User, 
-  Mail, 
-  AlignLeft 
-} from 'lucide-react';
+import {
+  getAutocompleteData,
+  saveAutocompleteEntry,
+} from '../utils/autocompleteStore';
+import { useAccessibleDialog } from '../lib/useAccessibleDialog';
 
 interface EditPollModalProps {
   poll: Poll;
@@ -31,8 +35,9 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  currentLang
+  currentLang,
 }) => {
+  const dialogRef = useRef<HTMLElement>(null);
   const autocomplete = useMemo(() => getAutocompleteData(), []);
 
   const [title, setTitle] = useState(poll.title);
@@ -44,82 +49,147 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [newDate, setNewDate] = useState('');
   const [newTime, setNewTime] = useState('');
-  
   const [isSaving, setIsSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Sync state when poll changes
+  useAccessibleDialog({
+    isOpen,
+    onClose: () => {
+      if (!isSaving) onClose();
+    },
+    dialogRef,
+    initialFocusSelector: '#edit-poll-title',
+  });
+
   useEffect(() => {
-    if (poll) {
-      setTitle(poll.title);
-      setDescription(poll.description || '');
-      setOrganizerName(poll.organizerName);
-      setOrganizerEmail(poll.organizerEmail || '');
-      setLocation(poll.location || '');
-      setAllowMaybe(poll.allowMaybe);
-      setSlots(poll.slots ? JSON.parse(JSON.stringify(poll.slots)) : []);
-      setErrorMsg('');
-      setSuccessMsg(false);
-    }
-  }, [poll, isOpen]);
+    if (!isOpen) return;
+
+    setTitle(poll.title);
+    setDescription(poll.description || '');
+    setOrganizerName(poll.organizerName);
+    setOrganizerEmail(poll.organizerEmail || '');
+    setLocation(poll.location || '');
+    setAllowMaybe(poll.allowMaybe);
+    setSlots(poll.slots ? poll.slots.map(slot => ({ ...slot })) : []);
+    setNewDate('');
+    setNewTime('');
+    setErrorMsg('');
+    setSuccessMsg(false);
+    setIsSaving(false);
+  }, [isOpen, poll]);
 
   if (!isOpen) return null;
 
-  const handleSlotDateChange = (id: string, dateVal: string) => {
-    setSlots(prev => prev.map(s => s.id === id ? { ...s, date: dateVal } : s));
+  const copy = currentLang === 'de'
+    ? {
+        details: 'Umfragedetails',
+        slots: 'Termine',
+        addSlot: 'Termin hinzufügen',
+        allowMaybe: 'Antwort „Falls nötig“ erlauben',
+        cancel: 'Abbrechen',
+        close: 'Dialog schließen',
+        minSlot: 'Mindestens ein Termin ist erforderlich.',
+        selectDate: 'Bitte wählen Sie ein Datum aus.',
+        titleRequired: 'Titel ist erforderlich.',
+        organizerRequired: 'Organisator ist erforderlich.',
+        saveError: 'Die Änderungen konnten nicht gespeichert werden.',
+        removeSlot: 'Termin löschen',
+      }
+    : {
+        details: 'Dettagli sondaggio',
+        slots: 'Date e orari',
+        addSlot: 'Aggiungi data',
+        allowMaybe: 'Consenti la risposta “Se necessario”',
+        cancel: 'Annulla',
+        close: 'Chiudi finestra',
+        minSlot: 'È necessario mantenere almeno una data.',
+        selectDate: 'Seleziona una data.',
+        titleRequired: 'Il titolo del sondaggio è obbligatorio.',
+        organizerRequired: 'L’organizzatore è obbligatorio.',
+        saveError: 'Impossibile salvare le modifiche.',
+        removeSlot: 'Elimina data',
+      };
+
+  const handleSlotDateChange = (id: string, date: string) => {
+    setSlots(current =>
+      current.map(slot => slot.id === id ? { ...slot, date } : slot),
+    );
   };
 
-  const handleSlotTimeChange = (id: string, timeVal: string) => {
-    setSlots(prev => prev.map(s => s.id === id ? { ...s, time: timeVal } : s));
+  const handleSlotTimeChange = (id: string, time: string) => {
+    setSlots(current =>
+      current.map(slot => slot.id === id ? { ...slot, time } : slot),
+    );
   };
 
   const handleRemoveSlot = (id: string) => {
     if (slots.length <= 1) {
-      setErrorMsg(currentLang === 'de' ? 'Mindestens ein Termin ist erforderlich.' : 'È necessario mantenere almeno un orario/data.');
+      setErrorMsg(copy.minSlot);
       return;
     }
+
     setErrorMsg('');
-    setSlots(prev => prev.filter(s => s.id !== id));
+    setSlots(current => current.filter(slot => slot.id !== id));
   };
 
   const handleAddSlot = () => {
     if (!newDate) {
-      setErrorMsg(currentLang === 'de' ? 'Bitte wählen Sie ein Datum aus.' : 'Seleziona una data per aggiungere il nuovo orario.');
+      setErrorMsg(copy.selectDate);
       return;
     }
-    setErrorMsg('');
-    const newSlotItem: TimeSlot = {
+
+    const slot: TimeSlot = {
       id: `slot-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       date: newDate,
-      time: newTime.trim() || t('allDay', currentLang)
+      time: newTime.trim() || t('allDay', currentLang),
     };
-    setSlots(prev => [...prev, newSlotItem]);
+
+    setSlots(current => [...current, slot]);
+    setNewDate('');
     setNewTime('');
+    setErrorMsg('');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     if (!title.trim()) {
-      setErrorMsg(currentLang === 'de' ? 'Titel ist erforderlich.' : 'Il titolo del sondaggio è obbligatorio.');
+      setErrorMsg(copy.titleRequired);
       return;
     }
+
     if (!organizerName.trim()) {
-      setErrorMsg(t('errEnterName', currentLang));
+      setErrorMsg(copy.organizerRequired);
       return;
     }
+
     if (slots.length === 0) {
-      setErrorMsg(currentLang === 'de' ? 'Fügen Sie mindestens einen Termin hinzu.' : 'Inserisci almeno un opzione di data e orario.');
+      setErrorMsg(copy.minSlot);
       return;
     }
 
     setIsSaving(true);
     setErrorMsg('');
 
-    // Save autocompletions
     saveAutocompleteEntry('organizers', organizerName);
-    if (organizerEmail) saveAutocompleteEntry('organizerEmails', organizerEmail);
-    if (location) saveAutocompleteEntry('locations', location);
+    if (organizerEmail) {
+      saveAutocompleteEntry('organizerEmails', organizerEmail);
+    }
+    if (location) {
+      saveAutocompleteEntry('locations', location);
+    }
+
+    const sortedSlots = [...slots].sort((a, b) => {
+      const dateOrder = a.date.localeCompare(b.date);
+      return dateOrder !== 0
+        ? dateOrder
+        : (a.time || '').localeCompare(b.time || '');
+    });
+
+    const finalizedSlotStillExists =
+      !poll.finalizedSlotId ||
+      sortedSlots.some(slot => slot.id === poll.finalizedSlotId);
 
     const updatedPoll: Poll = {
       ...poll,
@@ -129,255 +199,335 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
       organizerEmail: organizerEmail.trim() || undefined,
       location: location.trim() || undefined,
       allowMaybe,
-      slots: slots.sort((a, b) => a.date.localeCompare(b.date))
+      slots: sortedSlots,
+      finalizedSlotId: finalizedSlotStillExists
+        ? poll.finalizedSlotId
+        : undefined,
     };
 
     try {
       await savePollToFirestore(updatedPoll);
       onSave(updatedPoll);
       setSuccessMsg(true);
-      setTimeout(() => {
-        setSuccessMsg(false);
-        setIsSaving(false);
-        onClose();
-      }, 1200);
-    } catch (err) {
-      console.error('Error updating poll:', err);
-      setErrorMsg('Errore nel salvataggio delle modifiche.');
+      window.setTimeout(onClose, 700);
+    } catch (error) {
+      console.error('Error updating poll:', error);
+      setErrorMsg(copy.saveError);
       setIsSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in font-body overflow-y-auto">
-      <div className="bg-white border border-slate-300 rounded-sm shadow-2xl w-full max-w-3xl my-8 overflow-hidden flex flex-col max-h-[90vh]">
-        
-        {/* Header */}
-        <div className="bg-[#083845] text-white p-5 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <Calendar className="w-5 h-5 text-dns-teal" />
-            <h2 className="font-heading font-extrabold text-lg sm:text-xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-dns-deep/55 p-3 backdrop-blur-sm sm:p-5"
+      role="presentation"
+      onMouseDown={event => {
+        if (event.currentTarget === event.target && !isSaving) onClose();
+      }}
+    >
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="edit-poll-modal-title"
+        aria-describedby="edit-poll-modal-description"
+        tabIndex={-1}
+        className="dns-card flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-hidden outline-none"
+      >
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-dns-mid/10 bg-dns-primary px-5 py-4 text-white">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 font-alt text-[9px] font-bold uppercase tracking-[.07em] text-dns-soft">
+              <Calendar className="h-3.5 w-3.5" />
+              {copy.details}
+            </div>
+            <h2
+              id="edit-poll-modal-title"
+              className="mt-1 text-[18px] font-semibold text-white"
+            >
               {t('editPollModalTitle', currentLang)}
             </h2>
+            <p
+              id="edit-poll-modal-description"
+              className="mt-1 font-alt text-[9px] text-white/70"
+            >
+              {poll.title}
+            </p>
           </div>
-          <button 
+
+          <button
+            type="button"
             onClick={onClose}
-            className="p-1 hover:bg-white/10 rounded-sm text-slate-300 hover:text-white transition-colors"
+            disabled={isSaving}
+            data-dns-press
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white disabled:opacity-40"
+            aria-label={copy.close}
+            title={copy.close}
           >
-            <X className="w-5 h-5" />
+            <X className="h-4 w-4" />
           </button>
-        </div>
+        </header>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto grow">
-          {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-300 text-red-800 rounded-sm text-xs font-semibold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-
-          {successMsg && (
-            <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-sm text-xs font-semibold flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{t('editPollSuccess', currentLang)}</span>
-            </div>
-          )}
-
-          {/* Section 1: Details */}
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-dns-primary border-b border-slate-200 pb-1.5">
-              {t('secDetails', currentLang)}
-            </h3>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1">
-                {t('pollTitleLabel', currentLang)}
-              </label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-dns-primary focus:bg-white rounded-sm text-sm outline-hidden text-slate-800 font-medium"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
-                  <User className="w-3.5 h-3.5 text-dns-primary" />
-                  {t('organizerLabel', currentLang)}
-                </label>
-                <input
-                  type="text"
-                  required
-                  list="edit-organizers-list"
-                  value={organizerName}
-                  onChange={e => setOrganizerName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-dns-primary focus:bg-white rounded-sm text-sm outline-hidden text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
-                  <Mail className="w-3.5 h-3.5 text-dns-primary" />
-                  {t('organizerEmailLabel', currentLang)}
-                </label>
-                <input
-                  type="email"
-                  list="edit-emails-list"
-                  value={organizerEmail}
-                  onChange={e => setOrganizerEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-dns-primary focus:bg-white rounded-sm text-sm outline-hidden text-slate-800"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-dns-primary" />
-                  {t('locationLabel', currentLang)}
-                </label>
-                <input
-                  type="text"
-                  list="edit-locations-list"
-                  value={location}
-                  onChange={e => setLocation(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-dns-primary focus:bg-white rounded-sm text-sm outline-hidden text-slate-800"
-                />
-              </div>
-
-              <div className="flex items-center pt-5">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={allowMaybe}
-                    onChange={e => setAllowMaybe(e.target.checked)}
-                    className="w-4 h-4 text-dns-primary border-slate-300 rounded-xs focus:ring-dns-primary"
-                  />
-                  <span className="text-xs font-semibold text-slate-700">
-                    {t('allowMaybeLabel', currentLang)}
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center gap-1">
-                <AlignLeft className="w-3.5 h-3.5 text-dns-primary" />
-                {t('descriptionLabel', currentLang)}
-              </label>
-              <textarea
-                rows={2}
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 focus:border-dns-primary focus:bg-white rounded-sm text-sm outline-hidden text-slate-800"
-              />
-            </div>
-          </div>
-
-          {/* Section 2: Manage Date Slots */}
-          <div className="space-y-4 pt-2">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-dns-primary border-b border-slate-200 pb-1.5 flex items-center justify-between">
-              <span>{t('secSlots', currentLang)} ({slots.length})</span>
-            </h3>
-
-            {/* List of existing slots */}
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {slots.map((s, idx) => (
-                <div key={s.id} className="flex items-center gap-2 p-2.5 bg-slate-50 border border-slate-300 rounded-sm">
-                  <span className="text-xs font-mono font-bold text-slate-400 w-5 shrink-0">#{idx+1}</span>
-                  <input
-                    type="date"
-                    required
-                    value={s.date}
-                    onChange={e => handleSlotDateChange(s.id, e.target.value)}
-                    className="px-2.5 py-1.5 bg-white border border-slate-300 text-xs font-semibold rounded-sm text-slate-800 focus:border-dns-primary outline-hidden"
-                  />
-                  <input
-                    type="text"
-                    value={s.time || ''}
-                    placeholder={t('timeSlotPlaceholder', currentLang)}
-                    onChange={e => handleSlotTimeChange(s.id, e.target.value)}
-                    className="grow px-2.5 py-1.5 bg-white border border-slate-300 text-xs rounded-sm text-slate-800 focus:border-dns-primary outline-hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveSlot(s.id)}
-                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-sm transition-colors"
-                    title={t('btnDelete', currentLang)}
+        <form
+          onSubmit={handleSubmit}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6">
+            <div className="space-y-6">
+              <div aria-live="polite">
+                {errorMsg && (
+                  <div
+                    className="flex items-start gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 font-alt text-[10px] font-semibold text-red-800"
+                    role="alert"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
+                {successMsg && (
+                  <div className="flex items-start gap-2 rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 font-alt text-[10px] font-semibold text-emerald-800">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{t('editPollSuccess', currentLang)}</span>
+                  </div>
+                )}
+              </div>
+
+              <section>
+                <div className="dns-kicker">{copy.details}</div>
+
+                <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <label className="sm:col-span-2">
+                    <span className="dns-kicker">
+                      {t('pollTitleLabel', currentLang)}
+                    </span>
+                    <input
+                      id="edit-poll-title"
+                      type="text"
+                      required
+                      value={title}
+                      onChange={event => setTitle(event.target.value)}
+                      className="dns-input mt-1.5 h-10 w-full"
+                    />
+                  </label>
+
+                  <label>
+                    <span className="flex items-center gap-1.5 dns-kicker">
+                      <User className="h-3.5 w-3.5" />
+                      {t('organizerLabel', currentLang)}
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      list="edit-organizers-list"
+                      value={organizerName}
+                      onChange={event => setOrganizerName(event.target.value)}
+                      className="dns-input mt-1.5 h-10 w-full"
+                    />
+                  </label>
+
+                  <label>
+                    <span className="flex items-center gap-1.5 dns-kicker">
+                      <Mail className="h-3.5 w-3.5" />
+                      {t('organizerEmailLabel', currentLang)}
+                    </span>
+                    <input
+                      type="email"
+                      list="edit-emails-list"
+                      value={organizerEmail}
+                      onChange={event => setOrganizerEmail(event.target.value)}
+                      className="dns-input mt-1.5 h-10 w-full"
+                    />
+                  </label>
+
+                  <label>
+                    <span className="flex items-center gap-1.5 dns-kicker">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {t('locationLabel', currentLang)}
+                    </span>
+                    <input
+                      type="text"
+                      list="edit-locations-list"
+                      value={location}
+                      onChange={event => setLocation(event.target.value)}
+                      className="dns-input mt-1.5 h-10 w-full"
+                    />
+                  </label>
+
+                  <label className="flex min-h-10 items-center gap-2 self-end rounded-md border border-dns-mid/10 bg-dns-bg px-3 py-2 font-alt text-[10px] font-semibold text-dns-deep">
+                    <input
+                      type="checkbox"
+                      checked={allowMaybe}
+                      onChange={event => setAllowMaybe(event.target.checked)}
+                      className="h-4 w-4 accent-dns-mid"
+                    />
+                    <span>{copy.allowMaybe}</span>
+                  </label>
+
+                  <label className="sm:col-span-2">
+                    <span className="flex items-center gap-1.5 dns-kicker">
+                      <AlignLeft className="h-3.5 w-3.5" />
+                      {t('descriptionLabel', currentLang)}
+                    </span>
+                    <textarea
+                      rows={3}
+                      value={description}
+                      onChange={event => setDescription(event.target.value)}
+                      className="dns-input mt-1.5 w-full resize-y"
+                    />
+                  </label>
                 </div>
-              ))}
+              </section>
+
+              <section className="border-t border-dns-mid/10 pt-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="dns-kicker">{copy.slots}</div>
+                    <div className="mt-1 font-alt text-[9px] text-dns-muted">
+                      {slots.length} {t('slotsCount', currentLang)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {slots.map((slot, index) => (
+                    <div
+                      key={slot.id}
+                      className="grid gap-2 rounded-lg border border-dns-mid/10 bg-dns-bg p-3 sm:grid-cols-[auto_160px_minmax(0,1fr)_auto] sm:items-center"
+                    >
+                      <span className="font-alt text-[9px] font-bold text-dns-muted">
+                        #{index + 1}
+                      </span>
+
+                      <label>
+                        <span className="sr-only">
+                          {t('selectDateLabel', currentLang)}
+                        </span>
+                        <input
+                          type="date"
+                          required
+                          value={slot.date}
+                          onChange={event =>
+                            handleSlotDateChange(slot.id, event.target.value)
+                          }
+                          className="dns-input h-9 w-full"
+                        />
+                      </label>
+
+                      <label>
+                        <span className="sr-only">
+                          {t('timeSlotLabel', currentLang)}
+                        </span>
+                        <div className="relative">
+                          <Clock className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-dns-muted" />
+                          <input
+                            type="text"
+                            value={slot.time || ''}
+                            placeholder={t('timeSlotPlaceholder', currentLang)}
+                            onChange={event =>
+                              handleSlotTimeChange(slot.id, event.target.value)
+                            }
+                            className="dns-input h-9 w-full pl-8"
+                          />
+                        </div>
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSlot(slot.id)}
+                        data-dns-press
+                        className="inline-flex h-9 w-full items-center justify-center rounded-md border border-red-200 bg-white text-red-700 hover:bg-red-50 sm:w-9"
+                        aria-label={`${copy.removeSlot} #${index + 1}`}
+                        title={copy.removeSlot}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-3 rounded-lg border border-dashed border-dns-mid/20 bg-dns-light/10 p-3">
+                  <div className="dns-kicker">{copy.addSlot}</div>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-[160px_minmax(0,1fr)_auto]">
+                    <label>
+                      <span className="sr-only">
+                        {t('selectDateLabel', currentLang)}
+                      </span>
+                      <input
+                        type="date"
+                        value={newDate}
+                        onChange={event => setNewDate(event.target.value)}
+                        className="dns-input h-9 w-full"
+                      />
+                    </label>
+
+                    <label>
+                      <span className="sr-only">
+                        {t('timeSlotLabel', currentLang)}
+                      </span>
+                      <input
+                        type="text"
+                        value={newTime}
+                        placeholder={t('timeSlotPlaceholder', currentLang)}
+                        onChange={event => setNewTime(event.target.value)}
+                        className="dns-input h-9 w-full"
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={handleAddSlot}
+                      data-dns-press
+                      className="dns-btn-secondary min-h-9"
+                    >
+                      <Plus className="h-4 w-4" />
+                      {t('btnAddDate', currentLang)}
+                    </button>
+                  </div>
+                </div>
+              </section>
             </div>
 
-            {/* Add New Slot Box */}
-            <div className="p-3 bg-slate-100/80 border border-dashed border-slate-300 rounded-sm space-y-2">
-              <span className="text-xs font-bold text-slate-700 block">
-                {t('addDateSlot', currentLang)}:
-              </span>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <input
-                  type="date"
-                  value={newDate}
-                  onChange={e => setNewDate(e.target.value)}
-                  className="px-2.5 py-1.5 bg-white border border-slate-300 text-xs font-semibold rounded-sm text-slate-800 focus:border-dns-primary outline-hidden"
-                />
-                <input
-                  type="text"
-                  value={newTime}
-                  placeholder={t('timeSlotPlaceholder', currentLang)}
-                  onChange={e => setNewTime(e.target.value)}
-                  className="grow px-2.5 py-1.5 bg-white border border-slate-300 text-xs rounded-sm text-slate-800 focus:border-dns-primary outline-hidden"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddSlot}
-                  className="flex items-center justify-center gap-1 px-3 py-1.5 bg-dns-teal text-white hover:bg-dns-teal/90 text-xs font-bold rounded-sm transition-colors shrink-0"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>{t('btnAddDate', currentLang)}</span>
-                </button>
-              </div>
-            </div>
+            <datalist id="edit-organizers-list">
+              {autocomplete.organizers.map((value, index) => (
+                <option key={`edit-organizer-${index}`} value={value} />
+              ))}
+            </datalist>
+            <datalist id="edit-emails-list">
+              {autocomplete.organizerEmails.map((value, index) => (
+                <option key={`edit-email-${index}`} value={value} />
+              ))}
+            </datalist>
+            <datalist id="edit-locations-list">
+              {autocomplete.locations.map((value, index) => (
+                <option key={`edit-location-${index}`} value={value} />
+              ))}
+            </datalist>
           </div>
 
-          {/* Hidden datalists for autocompletion */}
-          <datalist id="edit-organizers-list">
-            {autocomplete.organizers.map((o, i) => <option key={`e-org-${i}`} value={o} />)}
-          </datalist>
-          <datalist id="edit-emails-list">
-            {autocomplete.organizerEmails.map((e, i) => <option key={`e-em-${i}`} value={e} />)}
-          </datalist>
-          <datalist id="edit-locations-list">
-            {autocomplete.locations.map((l, i) => <option key={`e-loc-${i}`} value={l} />)}
-          </datalist>
-
-          {/* Submit Footer */}
-          <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3 shrink-0">
+          <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-dns-mid/10 bg-dns-bg px-5 py-3 sm:flex-row sm:justify-end">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-sm transition-colors"
+              disabled={isSaving}
+              data-dns-press
+              className="dns-btn-secondary min-h-10 disabled:opacity-50"
             >
-              Annulla
+              {copy.cancel}
             </button>
             <button
               type="submit"
               disabled={isSaving}
-              className="flex items-center gap-2 px-5 py-2 bg-dns-primary text-white hover:bg-dns-deep font-bold text-xs rounded-sm shadow-xs transition-colors disabled:opacity-50"
+              data-dns-press
+              className="dns-btn-primary min-h-10 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Save className="w-4 h-4" />
-              <span>{t('btnSaveEdits', currentLang)}</span>
+              <Save className="h-4 w-4" />
+              {isSaving
+                ? (currentLang === 'de' ? 'Speichert…' : 'Salvataggio…')
+                : t('btnSaveEdits', currentLang)}
             </button>
-          </div>
+          </footer>
         </form>
-
-      </div>
+      </section>
     </div>
   );
 };
