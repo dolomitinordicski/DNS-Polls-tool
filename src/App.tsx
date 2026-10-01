@@ -310,16 +310,18 @@ export default function App() {
         )}
 
         {!isInviteeLink && !adminLocked && currentView === 'list' && !hasInitialPolls && (
-          <div data-dns-reveal className="max-w-6xl mx-auto px-4 py-8">
-            <div className="min-h-[420px] bg-white border border-slate-300 rounded-sm p-6 shadow-xs">
-              <div className="h-5 w-40 bg-slate-200 rounded-sm mb-5" />
-              <div className="h-10 w-72 max-w-full bg-slate-100 rounded-sm mb-8" />
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="h-28 bg-slate-100 rounded-sm border border-slate-200" />
-                <div className="h-28 bg-slate-100 rounded-sm border border-slate-200" />
-                <div className="h-28 bg-slate-100 rounded-sm border border-slate-200" />
-              </div>
+          <div data-dns-reveal className="dns-shell space-y-5 py-5">
+            <div className="dns-card p-6">
+              <div className="h-3 w-28 animate-pulse rounded bg-dns-light/60" />
+              <div className="mt-3 h-8 w-72 max-w-full animate-pulse rounded bg-dns-mid/10" />
+              <div className="mt-3 h-3 w-[460px] max-w-full animate-pulse rounded bg-dns-mid/10" />
             </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[0, 1, 2].map(item => (
+                <div key={item} className="dns-kpi h-[86px] animate-pulse" />
+              ))}
+            </div>
+            <div className="dns-card min-h-[320px] animate-pulse" />
           </div>
         )}
 
@@ -332,6 +334,7 @@ export default function App() {
               onRefreshList={refreshPollsList}
               onOpenCalendarView={() => setCurrentView('calendar')}
               currentLang={currentLang}
+              syncStatus={syncStatus}
             />
           </div>
         )}

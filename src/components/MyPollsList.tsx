@@ -1,22 +1,25 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import {
+  Calendar,
+  Check,
+  CheckCircle2,
+  Copy,
+  Edit3,
+  ExternalLink,
+  PlusCircle,
+  Search,
+  Trash2,
+  Users,
+} from 'lucide-react';
 import { Poll } from '../types';
-import { getTopVotedSlot, formatDate } from '../utils/dateUtils';
-import { deletePollFromFirestore, getPollShareUrl } from '../utils/firebaseStorage';
+import { formatDate, getTopVotedSlot } from '../utils/dateUtils';
+import {
+  deletePollFromFirestore,
+  getPollShareUrl,
+  type FirestoreSyncStatus,
+} from '../utils/firebaseStorage';
 import { Language, t } from '../utils/i18n';
 import { EditPollModal } from './EditPollModal';
-import { 
-  Calendar, 
-  Users, 
-  PlusCircle, 
-  Search, 
-  Trash2, 
-  ExternalLink, 
-  CheckCircle2, 
-  Copy, 
-  Check,
-  Edit3,
-  AlignLeft
-} from 'lucide-react';
 
 interface MyPollsListProps {
   polls: Poll[];
@@ -25,6 +28,24 @@ interface MyPollsListProps {
   onRefreshList: () => void;
   onOpenCalendarView: () => void;
   currentLang: Language;
+  syncStatus: FirestoreSyncStatus;
+}
+
+type DashboardFilter = 'all' | 'open' | 'confirmed' | 'expired';
+type PollLifecycle = Exclude<DashboardFilter, 'all'>;
+
+function pollLifecycle(poll: Poll, today: string): PollLifecycle {
+  if (poll.finalizedSlotId) {
+    const finalized = poll.slots.find(slot => slot.id === poll.finalizedSlotId);
+    if (finalized?.date && finalized.date < today) return 'expired';
+    return 'confirmed';
+  }
+
+  if (poll.slots.length > 0 && poll.slots.every(slot => slot.date < today)) {
+    return 'expired';
+  }
+
+  return 'open';
 }
 
 export const MyPollsList: React.FC<MyPollsListProps> = ({
@@ -33,316 +54,611 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
   onCreateNew,
   onRefreshList,
   onOpenCalendarView,
-  currentLang
+  currentLang,
+  syncStatus,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [filter, setFilter] = useState<DashboardFilter>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editingPoll, setEditingPoll] = useState<Poll | null>(null);
 
-  const filteredPolls = polls.filter(poll => 
-    poll.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    poll.organizerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (poll.location && poll.location.toLowerCase().includes(searchTerm.toLowerCase()))
+  const today = new Date().toISOString().split('T')[0];
+
+  const copy = currentLang === 'de'
+    ? {
+        kicker: 'Terminplanung',
+        section: 'Umfragen',
+        all: 'Alle',
+        open: 'Offen',
+        confirmed: 'Bestätigt',
+        expired: 'Abgelaufen',
+        source: 'Datenquelle',
+        live: 'Firestore live',
+        cached: 'Lokaler Cache',
+        connecting: 'Verbindung…',
+        restricted: 'Zugriff geschützt',
+        offline: 'Offline',
+        noLocation: 'Kein Ort angegeben',
+        noResponses: 'Noch keine Antworten',
+        nextOption: 'Nächster Termin',
+        bestOption: 'Beste Option',
+        confirmedDate: 'Bestätigter Termin',
+        actions: 'Aktionen',
+        poll: 'Umfrage',
+        status: 'Status',
+        responses: 'Antworten',
+        date: 'Termin',
+        clearSearch: 'Suche zurücksetzen',
+        resultSingular: 'Umfrage',
+        resultPlural: 'Umfragen',
+      }
+    : {
+        kicker: 'Pianificazione',
+        section: 'Sondaggi',
+        all: 'Tutti',
+        open: 'Aperti',
+        confirmed: 'Confermati',
+        expired: 'Scaduti',
+        source: 'Fonte dati',
+        live: 'Firestore live',
+        cached: 'Cache locale',
+        connecting: 'Connessione…',
+        restricted: 'Accesso protetto',
+        offline: 'Offline',
+        noLocation: 'Nessun luogo indicato',
+        noResponses: 'Nessuna risposta',
+        nextOption: 'Prossima data',
+        bestOption: 'Opzione migliore',
+        confirmedDate: 'Data confermata',
+        actions: 'Azioni',
+        poll: 'Sondaggio',
+        status: 'Stato',
+        responses: 'Risposte',
+        date: 'Data',
+        clearSearch: 'Azzera ricerca',
+        resultSingular: 'sondaggio',
+        resultPlural: 'sondaggi',
+      };
+
+  const counts = useMemo(() => {
+    const lifecycle = polls.reduce(
+      (acc, poll) => {
+        acc[pollLifecycle(poll, today)] += 1;
+        return acc;
+      },
+      { open: 0, confirmed: 0, expired: 0 },
+    );
+
+    return {
+      ...lifecycle,
+      active: lifecycle.open + lifecycle.confirmed,
+      responses: polls.reduce(
+        (total, poll) => total + poll.participants.length,
+        0,
+      ),
+    };
+  }, [polls, today]);
+
+  const filteredPolls = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    return polls.filter(poll => {
+      const lifecycle = pollLifecycle(poll, today);
+      const matchesFilter = filter === 'all' || lifecycle === filter;
+      if (!matchesFilter) return false;
+      if (!normalizedSearch) return true;
+
+      return [
+        poll.title,
+        poll.organizerName,
+        poll.location || '',
+        poll.description || '',
+      ].some(value => value.toLowerCase().includes(normalizedSearch));
+    });
+  }, [filter, polls, searchTerm, today]);
+
+  const expiredPolls = useMemo(
+    () => polls.filter(poll => pollLifecycle(poll, today) === 'expired'),
+    [polls, today],
   );
 
-  const handleCopyLink = (poll: Poll, e: React.MouseEvent) => {
+  const handleCopyLink = async (poll: Poll, e: React.MouseEvent) => {
     e.stopPropagation();
-    const shareUrl = getPollShareUrl(poll);
-    navigator.clipboard.writeText(shareUrl);
+    await navigator.clipboard.writeText(getPollShareUrl(poll));
     setCopiedId(poll.id);
-    setTimeout(() => setCopiedId(null), 2500);
+    window.setTimeout(() => setCopiedId(null), 2500);
   };
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm(t('confirmDelete', currentLang))) {
-      await deletePollFromFirestore(id);
-      onRefreshList();
-    }
-  };
+    if (!window.confirm(t('confirmDelete', currentLang))) return;
 
-  // Identify expired or past polls
-  const todayStr = new Date().toISOString().split('T')[0];
-  const expiredPolls = polls.filter(poll => {
-    if (poll.finalizedSlotId) {
-      const finalizedSlot = poll.slots.find(s => s.id === poll.finalizedSlotId);
-      if (finalizedSlot && finalizedSlot.date < todayStr) return true;
-    }
-    if (poll.slots.length > 0) {
-      return poll.slots.every(s => s.date < todayStr);
-    }
-    return false;
-  });
+    await deletePollFromFirestore(id);
+    onRefreshList();
+  };
 
   const handleDeleteOldPolls = async () => {
-    if (expiredPolls.length === 0) {
-      alert(currentLang === 'de' ? 'Keine abgelaufenen Umfragen zum Löschen gefunden.' : 'Nessun sondaggio scaduto o passato trovato.');
+    if (expiredPolls.length === 0) return;
+    if (
+      !window.confirm(
+        `${t('confirmDeleteOld', currentLang)} (${expiredPolls.length})`,
+      )
+    ) {
       return;
     }
-    if (window.confirm(`${t('confirmDeleteOld', currentLang)} (${expiredPolls.length})`)) {
-      for (const p of expiredPolls) {
-        await deletePollFromFirestore(p.id);
-      }
-      onRefreshList();
+
+    for (const poll of expiredPolls) {
+      await deletePollFromFirestore(poll.id);
     }
+
+    onRefreshList();
   };
 
-  const totalVotesCount = polls.reduce((acc, p) => acc + p.participants.length, 0);
-  const confirmedPollsCount = polls.filter(p => p.finalizedSlotId).length;
+  const syncLabel = copy[syncStatus];
+  const syncDotClass = [
+    'h-2 w-2 rounded-full',
+    syncStatus === 'live' ? 'bg-emerald-500' : '',
+    syncStatus === 'cached' ? 'bg-amber-500' : '',
+    syncStatus === 'restricted' ? 'bg-orange-500' : '',
+    syncStatus === 'offline' ? 'bg-red-500' : '',
+    syncStatus === 'connecting' ? 'bg-dns-light' : '',
+  ].join(' ');
+
+  const filterOptions: Array<{
+    id: DashboardFilter;
+    label: string;
+    count: number;
+  }> = [
+    { id: 'all', label: copy.all, count: polls.length },
+    { id: 'open', label: copy.open, count: counts.open },
+    { id: 'confirmed', label: copy.confirmed, count: counts.confirmed },
+    { id: 'expired', label: copy.expired, count: counts.expired },
+  ];
+
+  const renderStatus = (poll: Poll) => {
+    const lifecycle = pollLifecycle(poll, today);
+
+    return (
+      <span
+        className={[
+          'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[9px] font-bold uppercase tracking-[.06em]',
+          lifecycle === 'open'
+            ? 'border-dns-mid/20 bg-dns-bg text-dns-mid'
+            : '',
+          lifecycle === 'confirmed'
+            ? 'border-emerald-700/20 bg-emerald-50 text-emerald-800'
+            : '',
+          lifecycle === 'expired'
+            ? 'border-slate-300 bg-slate-100 text-slate-600'
+            : '',
+        ].join(' ')}
+      >
+        {lifecycle === 'confirmed' && <CheckCircle2 className="h-3 w-3" />}
+        {copy[lifecycle]}
+      </span>
+    );
+  };
+
+  const getDisplaySlot = (poll: Poll) => {
+    if (poll.finalizedSlotId) {
+      const slot = poll.slots.find(item => item.id === poll.finalizedSlotId);
+      return {
+        slot,
+        label: copy.confirmedDate,
+      };
+    }
+
+    const topSlotId = getTopVotedSlot(poll.slots, poll.participants);
+    const topSlot = poll.slots.find(item => item.id === topSlotId);
+
+    if (topSlot && poll.participants.length > 0) {
+      return {
+        slot: topSlot,
+        label: copy.bestOption,
+      };
+    }
+
+    const nextSlot =
+      poll.slots.find(item => item.date >= today) ||
+      poll.slots[0];
+
+    return {
+      slot: nextSlot,
+      label: copy.nextOption,
+    };
+  };
+
+  const renderActions = (poll: Poll, compact = false) => (
+    <div
+      className={[
+        'flex items-center',
+        compact ? 'gap-1' : 'gap-1.5',
+      ].join(' ')}
+      onClick={event => event.stopPropagation()}
+    >
+      <button
+        type="button"
+        onClick={event => void handleCopyLink(poll, event)}
+        data-dns-press
+        data-dns-hover
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-dns-mid/15 bg-white text-dns-mid hover:bg-dns-bg"
+        title={copiedId === poll.id ? t('btnCopied', currentLang) : t('btnCopyLink', currentLang)}
+        aria-label={copiedId === poll.id ? t('btnCopied', currentLang) : t('btnCopyLink', currentLang)}
+      >
+        {copiedId === poll.id
+          ? <Check className="h-3.5 w-3.5" />
+          : <Copy className="h-3.5 w-3.5" />}
+      </button>
+
+      <button
+        type="button"
+        onClick={event => {
+          event.stopPropagation();
+          setEditingPoll(poll);
+        }}
+        data-dns-press
+        data-dns-hover
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-dns-mid/15 bg-white text-dns-mid hover:bg-dns-bg"
+        title={t('btnEditPoll', currentLang)}
+        aria-label={t('btnEditPoll', currentLang)}
+      >
+        <Edit3 className="h-3.5 w-3.5" />
+      </button>
+
+      <button
+        type="button"
+        onClick={event => void handleDelete(poll.id, event)}
+        data-dns-press
+        data-dns-hover
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-white text-red-700 hover:bg-red-50"
+        title={t('btnDelete', currentLang)}
+        aria-label={t('btnDelete', currentLang)}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+
+      {!compact && (
+        <button
+          type="button"
+          onClick={() => onSelectPoll(poll)}
+          data-dns-press
+          className="dns-btn-primary h-8 px-3"
+        >
+          {t('btnOpen', currentLang)}
+          <ExternalLink className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-body">
-      {/* Top Welcome Banner */}
-      <div className="bg-white border border-slate-300 rounded-sm p-6 text-slate-800 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-2 max-w-xl">
-          <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-[#083845] tracking-tight">
-            {t('welcomeTitle', currentLang)}
-          </h1>
-          <p className="text-sm text-slate-600 leading-relaxed">
-            {t('welcomeSubtitle', currentLang)}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <button
-            onClick={onOpenCalendarView}
-            id="hero-open-calendar-btn"
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 font-bold text-xs rounded-sm transition-all shrink-0 cursor-pointer"
-          >
-            <Calendar className="w-4 h-4 text-dns-primary" />
-            <span>{t('btnCalendarView', currentLang)}</span>
-          </button>
-
-          <button
-            onClick={onCreateNew}
-            id="hero-create-ai-poll-btn"
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-dns-primary hover:bg-dns-primary/[.04] font-semibold text-xs rounded-md transition-colors shrink-0 cursor-pointer border border-dns-teal/25"
-            title={t('aiPromptSubtitle', currentLang)}
-          >
-            <AlignLeft className="w-4 h-4 text-dns-teal" />
-            <span>{t('btnCreateWithPrompt', currentLang)}</span>
-          </button>
-
-          <button
-            onClick={onCreateNew}
-            id="hero-create-poll-btn"
-            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-[#336979] text-white hover:bg-[#8EBDC4] hover:text-[#083845] font-bold text-xs rounded-sm shadow-xs transition-all shrink-0 cursor-pointer"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>{t('btnNewPoll', currentLang)}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-300 rounded-sm p-4 flex items-center gap-3 shadow-xs">
-          <div className="p-2.5 bg-slate-100 text-dns-primary rounded-sm">
-            <Calendar className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-xs text-slate-500 font-semibold block">{t('kpiActivePolls', currentLang)}</span>
-            <strong className="text-lg text-[#083845] font-heading font-extrabold">{polls.length}</strong>
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-300 rounded-sm p-4 flex items-center gap-3 shadow-xs">
-          <div className="p-2.5 bg-slate-100 text-emerald-700 rounded-sm">
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-xs text-slate-500 font-semibold block">{t('kpiTotalVotes', currentLang)}</span>
-            <strong className="text-lg text-[#083845] font-heading font-extrabold">{totalVotesCount}</strong>
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-300 rounded-sm p-4 flex items-center gap-3 shadow-xs">
-          <div className="p-2.5 bg-slate-100 text-amber-700 rounded-sm">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-xs text-slate-500 font-semibold block">{t('kpiConfirmedDates', currentLang)}</span>
-            <strong className="text-lg text-[#083845] font-heading font-extrabold">{confirmedPollsCount}</strong>
-          </div>
-        </div>
-      </div>
-
-      {/* Controls & Search */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder={t('searchPlaceholder', currentLang)}
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-100 border border-slate-300 focus:border-dns-primary rounded-sm pl-9 pr-4 py-2 text-xs text-slate-900 focus:outline-none placeholder:text-slate-500"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 font-semibold w-full sm:w-auto justify-between sm:justify-end">
-          <span>{filteredPolls.length} {t('searchResults', currentLang)}</span>
-
-          {expiredPolls.length > 0 && (
-            <button
-              onClick={handleDeleteOldPolls}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-300 text-red-800 font-bold rounded-sm transition-colors"
-              title={t('confirmDeleteOld', currentLang)}
-            >
-              <Trash2 className="w-3.5 h-3.5 text-red-600" />
-              <span>{t('btnDeleteOldPolls', currentLang)} ({expiredPolls.length})</span>
-            </button>
-          )}
-
-          <button
-            onClick={onOpenCalendarView}
-            className="text-dns-primary hover:underline flex items-center gap-1 font-bold"
-          >
-            <Calendar className="w-3.5 h-3.5" /> {t('btnCalendarView', currentLang)}
-          </button>
-        </div>
-      </div>
-
-      {/* Poll Cards Grid */}
-      {filteredPolls.length === 0 ? (
-        <div className="p-12 text-center bg-white border border-slate-300 rounded-sm space-y-4">
-          <Calendar className="w-12 h-12 text-slate-400 mx-auto" />
-          <div className="space-y-1">
-            <h3 className="font-heading font-bold text-lg text-[#083845]">{t('emptyTitle', currentLang)}</h3>
-            <p className="text-xs text-slate-600 max-w-md mx-auto">
-              {t('emptySubtitle', currentLang)}
+    <div className="dns-shell space-y-5 py-5 font-body">
+      <section className="dns-card p-5 md:p-6" data-dns-reveal>
+        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-start">
+          <div className="max-w-2xl">
+            <div className="dns-kicker">{copy.kicker}</div>
+            <h1 className="mt-1 text-[27px] font-semibold tracking-[-.02em] text-dns-deep">
+              {t('welcomeTitle', currentLang)}
+            </h1>
+            <p className="mt-2 max-w-xl font-alt text-[12px] leading-relaxed text-dns-muted">
+              {t('welcomeSubtitle', currentLang)}
             </p>
           </div>
-          <button
-            onClick={onCreateNew}
-            className="px-4 py-2 bg-[#336979] text-white hover:bg-[#8EBDC4] hover:text-[#083845] font-bold text-xs rounded-sm transition-all inline-flex items-center gap-2"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>{t('btnCreateFirst', currentLang)}</span>
-          </button>
+
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <button
+              type="button"
+              onClick={onOpenCalendarView}
+              data-dns-press
+              data-dns-hover
+              className="dns-btn-secondary min-h-9"
+            >
+              <Calendar className="h-4 w-4" />
+              {t('btnCalendarView', currentLang)}
+            </button>
+            <button
+              type="button"
+              onClick={onCreateNew}
+              data-dns-press
+              className="dns-btn-primary min-h-9"
+            >
+              <PlusCircle className="h-4 w-4" />
+              {t('btnNewPoll', currentLang)}
+            </button>
+          </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredPolls.map((poll) => {
-            const topSlotId = getTopVotedSlot(poll.slots, poll.participants);
-            const topSlot = poll.slots.find(s => s.id === (poll.finalizedSlotId || topSlotId));
+      </section>
 
-            return (
-              <div
-                key={poll.id}
-                onClick={() => onSelectPoll(poll)}
-                className="bg-white border border-slate-300 hover:border-dns-primary rounded-sm p-5 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group relative"
-              >
-                <div className="space-y-3">
-                  {/* Status badge & Slot count */}
-                  <div className="flex items-center justify-between gap-2">
-                    {poll.finalizedSlotId ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-sm">
-                        <CheckCircle2 className="w-3.5 h-3.5" /> {t('dateConfirmed', currentLang)}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-300 px-2 py-0.5 rounded-sm">
-                        <Calendar className="w-3.5 h-3.5 text-slate-600" />
-                        {poll.slots.length} {t('optionsCount', currentLang)}
-                      </span>
-                    )}
+      <section
+        className="grid gap-3 sm:grid-cols-3"
+        aria-label={currentLang === 'de' ? 'Übersicht' : 'Riepilogo'}
+      >
+        <div className="dns-kpi" data-dns-reveal data-dns-reveal-index="0" data-dns-reveal-stagger="compact">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="dns-kicker">{t('kpiActivePolls', currentLang)}</div>
+              <div className="mt-1 text-[26px] font-semibold leading-none text-dns-deep">
+                {counts.active}
+              </div>
+            </div>
+            <Calendar className="h-5 w-5 text-dns-mid" />
+          </div>
+        </div>
 
-                    <span className="text-xs text-slate-500 flex items-center gap-1 font-medium">
-                      <Users className="w-3.5 h-3.5 text-slate-500" />
-                      {poll.participants.length} {t('votesCount', currentLang)}
-                    </span>
-                  </div>
+        <div className="dns-kpi" data-dns-reveal data-dns-reveal-index="1" data-dns-reveal-stagger="compact">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="dns-kicker">{t('kpiTotalVotes', currentLang)}</div>
+              <div className="mt-1 text-[26px] font-semibold leading-none text-dns-deep">
+                {counts.responses}
+              </div>
+            </div>
+            <Users className="h-5 w-5 text-dns-mid" />
+          </div>
+        </div>
 
-                  {/* Title & Description */}
-                  <div>
-                    <h3 className="font-heading font-bold text-base text-[#083845] group-hover:text-dns-primary transition-colors line-clamp-2">
-                      {poll.title}
-                    </h3>
-                    <p className="text-xs text-slate-600 mt-1">
-                      {t('organizedBy', currentLang)} <strong className="text-slate-800">{poll.organizerName}</strong>
-                    </p>
-                  </div>
+        <div className="dns-kpi" data-dns-reveal data-dns-reveal-index="2" data-dns-reveal-stagger="compact">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="dns-kicker">{t('kpiConfirmedDates', currentLang)}</div>
+              <div className="mt-1 text-[26px] font-semibold leading-none text-dns-deep">
+                {counts.confirmed}
+              </div>
+            </div>
+            <CheckCircle2 className="h-5 w-5 text-dns-mid" />
+          </div>
+        </div>
+      </section>
 
-                  {poll.description && (
-                    <p className="text-xs text-slate-600 line-clamp-2 bg-slate-50 p-2 rounded-sm border border-slate-200">
-                      {poll.description}
-                    </p>
-                  )}
+      <section className="dns-card overflow-hidden" data-dns-reveal>
+        <div className="border-b border-dns-mid/10 p-5 md:p-6">
+          <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+            <div>
+              <div className="dns-section-title">{copy.section}</div>
+              <div className="mt-1 flex items-center gap-2 font-alt text-[10px] text-dns-muted">
+                <span className={syncDotClass} aria-hidden="true" />
+                <span>{copy.source}: {syncLabel}</span>
+              </div>
+            </div>
 
-                  {/* Top / Finalized Slot Highlight */}
-                  {topSlot && (
-                    <div className="text-xs bg-slate-50 border border-slate-200 rounded-sm p-2 flex items-center justify-between text-slate-700">
-                      <span className="font-medium truncate">
-                        {t('topOption', currentLang)} <strong className="text-[#083845]">{formatDate(topSlot.date, currentLang).dayMonth}</strong> ({topSlot.time || (currentLang === 'de' ? 'Ganztägig' : 'Tutto il giorno')})
-                      </span>
-                      <span className="text-[10px] text-slate-600 font-mono uppercase bg-slate-200 px-1.5 py-0.5 rounded-sm">
-                        {t('recommended', currentLang)}
-                      </span>
-                    </div>
-                  )}
-                </div>
+            <div className="flex w-full flex-col gap-3 xl:w-auto xl:flex-row xl:items-center">
+              <div className="relative w-full xl:w-[330px]">
+                <Search
+                  className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dns-mid"
+                  aria-hidden="true"
+                />
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={event => setSearchTerm(event.target.value)}
+                  placeholder={t('searchPlaceholder', currentLang)}
+                  className="dns-input h-9 w-full pl-9 pr-3"
+                />
+              </div>
 
-                {/* Card Actions */}
-                <div className="pt-3 border-t border-slate-200 flex items-center justify-between gap-2 text-xs">
+              <div className="flex max-w-full gap-1 overflow-x-auto pb-1 xl:pb-0">
+                {filterOptions.map(option => (
                   <button
+                    key={option.id}
                     type="button"
-                    onClick={(e) => handleCopyLink(poll, e)}
-                    className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-sm border border-slate-300 transition-colors font-medium"
+                    onClick={() => setFilter(option.id)}
+                    data-dns-press
+                    className={[
+                      'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-3 text-[10px] font-bold uppercase tracking-[.05em] transition-colors',
+                      filter === option.id
+                        ? 'border-dns-mid bg-dns-light text-dns-deep'
+                        : 'border-dns-mid/15 bg-white text-dns-mid hover:bg-dns-bg',
+                    ].join(' ')}
+                    aria-pressed={filter === option.id}
                   >
-                    {copiedId === poll.id ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{t('btnCopied', currentLang)}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>{t('btnCopyLink', currentLang)}</span>
-                      </>
-                    )}
+                    {option.label}
+                    <span className="font-alt text-[9px] font-normal opacity-75">
+                      {option.count}
+                    </span>
                   </button>
+                ))}
+              </div>
+            </div>
+          </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingPoll(poll);
-                      }}
-                      className="p-1.5 text-slate-500 hover:text-amber-800 hover:bg-amber-50 rounded-sm transition-colors"
-                      title={t('btnEditPoll', currentLang)}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 font-alt text-[10px] text-dns-muted">
+            <span>
+              {filteredPolls.length}{' '}
+              {filteredPolls.length === 1 ? copy.resultSingular : copy.resultPlural}
+            </span>
+
+            {expiredPolls.length > 0 && (
+              <button
+                type="button"
+                onClick={() => void handleDeleteOldPolls()}
+                data-dns-press
+                data-dns-hover
+                className="inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-[10px] font-semibold text-red-700 hover:underline"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                {t('btnDeleteOldPolls', currentLang)} ({expiredPolls.length})
+              </button>
+            )}
+          </div>
+        </div>
+
+        {filteredPolls.length === 0 ? (
+          <div className="px-5 py-14 text-center md:px-6">
+            <Calendar className="mx-auto h-8 w-8 text-dns-light" />
+            <h2 className="mt-4 text-[18px] font-semibold text-dns-deep">
+              {t('emptyTitle', currentLang)}
+            </h2>
+            <p className="mx-auto mt-2 max-w-md font-alt text-[11px] leading-relaxed text-dns-muted">
+              {t('emptySubtitle', currentLang)}
+            </p>
+
+            {searchTerm || filter !== 'all' ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilter('all');
+                }}
+                data-dns-press
+                className="dns-btn-secondary mt-5"
+              >
+                {copy.clearSearch}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onCreateNew}
+                data-dns-press
+                className="dns-btn-primary mt-5"
+              >
+                <PlusCircle className="h-4 w-4" />
+                {t('btnCreateFirst', currentLang)}
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="hidden lg:block">
+              <div className="grid grid-cols-[118px_minmax(260px,1.45fr)_minmax(150px,.75fr)_100px_minmax(190px,.8fr)_176px] items-center gap-4 border-b border-dns-mid/10 bg-dns-bg/70 px-5 py-2.5 font-alt text-[9px] font-bold uppercase tracking-[.06em] text-dns-muted md:px-6">
+                <span>{copy.status}</span>
+                <span>{copy.poll}</span>
+                <span>{t('organizedBy', currentLang)}</span>
+                <span>{copy.responses}</span>
+                <span>{copy.date}</span>
+                <span className="text-right">{copy.actions}</span>
+              </div>
+
+              <div className="divide-y divide-dns-mid/10">
+                {filteredPolls.map((poll, index) => {
+                  const display = getDisplaySlot(poll);
+
+                  return (
+                    <div
+                      key={poll.id}
+                      onClick={() => onSelectPoll(poll)}
+                      data-dns-hover
+                      data-dns-reveal
+                      data-dns-reveal-index={index}
+                      data-dns-reveal-stagger="compact"
+                      className="grid cursor-pointer grid-cols-[118px_minmax(260px,1.45fr)_minmax(150px,.75fr)_100px_minmax(190px,.8fr)_176px] items-center gap-4 px-5 py-4 outline-none hover:bg-dns-bg/65 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-dns-mid md:px-6"
                     >
-                      <Edit3 className="w-4 h-4 text-amber-700" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => handleDelete(poll.id, e)}
-                      className="p-1.5 text-slate-500 hover:text-red-700 hover:bg-red-50 rounded-sm transition-colors"
-                      title={t('btnDelete', currentLang)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      <div>{renderStatus(poll)}</div>
+
+                      <div className="min-w-0">
+                        <div className="truncate text-[13px] font-semibold text-dns-deep">
+                          {poll.title}
+                        </div>
+                        <div className="mt-1 truncate font-alt text-[10px] text-dns-muted">
+                          {poll.location || copy.noLocation}
+                        </div>
+                      </div>
+
+                      <div className="truncate font-alt text-[11px] text-dns-deep">
+                        {poll.organizerName}
+                      </div>
+
+                      <div>
+                        <div className="text-[13px] font-semibold text-dns-deep">
+                          {poll.participants.length}
+                        </div>
+                        <div className="mt-0.5 font-alt text-[9px] text-dns-muted">
+                          {poll.participants.length === 0 ? copy.noResponses : t('votesCount', currentLang)}
+                        </div>
+                      </div>
+
+                      <div className="min-w-0">
+                        {display.slot ? (
+                          <>
+                            <div className="truncate text-[11px] font-semibold text-dns-deep">
+                              {formatDate(display.slot.date, currentLang).dayMonth}
+                              {display.slot.time ? ` · ${display.slot.time}` : ''}
+                            </div>
+                            <div className="mt-0.5 truncate font-alt text-[9px] text-dns-muted">
+                              {display.label}
+                            </div>
+                          </>
+                        ) : (
+                          <span className="font-alt text-[10px] text-dns-muted">—</span>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end">
+                        {renderActions(poll)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="divide-y divide-dns-mid/10 lg:hidden">
+              {filteredPolls.map((poll, index) => {
+                const display = getDisplaySlot(poll);
+
+                return (
+                  <article
+                    key={poll.id}
+                    data-dns-reveal
+                    data-dns-reveal-index={index}
+                    data-dns-reveal-stagger="compact"
+                    className="p-5"
+                  >
                     <button
                       type="button"
                       onClick={() => onSelectPoll(poll)}
-                      className="flex items-center gap-1 px-3 py-1 bg-dns-primary text-white hover:bg-dns-deep font-bold rounded-sm transition-colors shadow-xs"
+                      className="block w-full border-0 bg-transparent p-0 text-left"
                     >
-                      <span>{t('btnOpen', currentLang)}</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                      <div className="flex items-start justify-between gap-3">
+                        {renderStatus(poll)}
+                        <span className="font-alt text-[10px] text-dns-muted">
+                          {poll.participants.length} {t('votesCount', currentLang)}
+                        </span>
+                      </div>
 
-      {/* Edit Poll Modal */}
+                      <h2 className="mt-3 text-[15px] font-semibold leading-snug text-dns-deep">
+                        {poll.title}
+                      </h2>
+
+                      <p className="mt-1 font-alt text-[10px] text-dns-muted">
+                        {t('organizedBy', currentLang)} {poll.organizerName}
+                        {poll.location ? ` · ${poll.location}` : ''}
+                      </p>
+
+                      {display.slot && (
+                        <div className="mt-3 rounded-md border border-dns-mid/10 bg-dns-bg px-3 py-2">
+                          <div className="dns-kicker">{display.label}</div>
+                          <div className="mt-1 text-[11px] font-semibold text-dns-deep">
+                            {formatDate(display.slot.date, currentLang).dayMonth}
+                            {display.slot.time ? ` · ${display.slot.time}` : ''}
+                          </div>
+                        </div>
+                      )}
+                    </button>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-dns-mid/10 pt-3">
+                      {renderActions(poll, true)}
+                      <button
+                        type="button"
+                        onClick={() => onSelectPoll(poll)}
+                        data-dns-press
+                        className="dns-btn-primary h-8"
+                      >
+                        {t('btnOpen', currentLang)}
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </section>
+
       {editingPoll && (
         <EditPollModal
           poll={editingPoll}
-          isOpen={!!editingPoll}
+          isOpen={Boolean(editingPoll)}
           onClose={() => setEditingPoll(null)}
           onSave={() => {
             onRefreshList();
