@@ -25,9 +25,11 @@ import { generateICalFile } from '../utils/ical';
 import {
   formatPollRecipients,
   getPollRecipients,
+  loadPollRecipientsSynced,
   parseRecipientEmails,
-  savePollRecipients,
+  savePollRecipientsSynced,
 } from '../utils/pollRecipientStore';
+import { PrivateRecipientSyncControl } from './PrivateRecipientSyncControl';
 
 interface FinalizationPanelProps {
   poll: Poll;
@@ -80,14 +82,14 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
         saveLink: 'Link speichern',
         saved: 'Gespeichert',
         recipients: 'Empfänger für Outlook',
-        recipientsHint: 'Eine E-Mail pro Zeile oder durch Komma/Semikolon getrennt. Diese Liste bleibt nur in diesem Browser und wird nicht in Firestore gespeichert.',
+        recipientsHint: 'Eine E-Mail pro Zeile oder durch Komma/Semikolon getrennt. Lokal bleibt die Liste immer verfügbar; mit privatem Cloud-Sync wird sie geschützt in Firestore gespeichert.',
         saveRecipients: 'Empfänger speichern',
         copyRecipients: 'E-Mails kopieren',
         recipientsSaved: 'Empfänger gespeichert',
         attendees: 'Teilnehmer',
         noAttendees: 'Keine Empfänger hinterlegt',
         download: 'ICS für Outlook herunterladen',
-        downloadHint: 'Die ICS-Datei enthält Termin, Ort/Link, Organisator und die lokal hinterlegten Empfänger.',
+        downloadHint: 'Die ICS-Datei enthält Termin, Ort/Link, Organisator und die aktuell hinterlegten Empfänger.',
       }
     : {
         kicker: '04 · Finalizzazione',
@@ -113,14 +115,14 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
         saveLink: 'Salva link',
         saved: 'Salvato',
         recipients: 'Destinatari per Outlook',
-        recipientsHint: 'Una e-mail per riga oppure separate da virgola/punto e virgola. La lista resta solo in questo browser e non viene salvata su Firestore.',
+        recipientsHint: 'Una e-mail per riga oppure separate da virgola/punto e virgola. La lista resta sempre disponibile in locale; con il sync cloud privato viene salvata in modo protetto su Firestore.',
         saveRecipients: 'Salva destinatari',
         copyRecipients: 'Copia e-mail',
         recipientsSaved: 'Destinatari salvati',
         attendees: 'destinatari',
         noAttendees: 'Nessun destinatario salvato',
         download: 'Scarica ICS per Outlook',
-        downloadHint: 'Il file ICS contiene data, luogo/link, organizzatore e i destinatari salvati localmente.',
+        downloadHint: 'Il file ICS contiene data, luogo/link, organizzatore e i destinatari attualmente salvati.',
       };
 
   useEffect(() => {
@@ -137,6 +139,10 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
 
   useEffect(() => {
     setRecipientInput(formatPollRecipients(getPollRecipients(poll.id)));
+
+    void loadPollRecipientsSynced(poll.id).then(({ emails }) => {
+      setRecipientInput(formatPollRecipients(emails));
+    });
   }, [poll.id]);
 
   const selectedSlot = poll.slots.find(slot => slot.id === selectedSlotId);
@@ -191,9 +197,17 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
     }
   };
 
-  const handleSaveRecipients = () => {
-    const saved = savePollRecipients(poll.id, recipientInput);
-    setRecipientInput(formatPollRecipients(saved));
+  const handleRefreshRecipientsFromCloud = async () => {
+    const { emails } = await loadPollRecipientsSynced(poll.id);
+    setRecipientInput(formatPollRecipients(emails));
+  };
+
+  const handleSaveRecipients = async () => {
+    const { emails } = await savePollRecipientsSynced(
+      poll.id,
+      recipientInput,
+    );
+    setRecipientInput(formatPollRecipients(emails));
     setRecipientsSaved(true);
     window.setTimeout(() => setRecipientsSaved(false), 1800);
   };
@@ -205,10 +219,13 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
     window.setTimeout(() => setCopiedRecipients(false), 1800);
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!poll.finalizedSlotId) return;
 
-    const recipients = savePollRecipients(poll.id, recipientInput);
+    const { emails: recipients } = await savePollRecipientsSynced(
+      poll.id,
+      recipientInput,
+    );
 
     generateICalFile(
       {
@@ -444,7 +461,7 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
 
                   <button
                     type="button"
-                    onClick={handleSaveRecipients}
+                    onClick={() => void handleSaveRecipients()}
                     data-dns-press
                     className="dns-btn-secondary min-h-8"
                   >
@@ -456,9 +473,16 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
                 </div>
               </div>
 
-              <p className="mt-2 font-alt text-[9px] leading-relaxed text-dns-muted">
-                {copy.recipientsHint}
-              </p>
+              <div className="mt-2 space-y-2">
+                <p className="font-alt text-[9px] leading-relaxed text-dns-muted">
+                  {copy.recipientsHint}
+                </p>
+                <PrivateRecipientSyncControl
+                  currentLang={currentLang}
+                  onAuthorized={handleRefreshRecipientsFromCloud}
+                  compact
+                />
+              </div>
             </div>
           </div>
 
@@ -469,7 +493,7 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
 
             <button
               type="button"
-              onClick={handleDownload}
+              onClick={() => void handleDownload()}
               data-dns-press
               className="dns-btn-primary min-h-10 shrink-0"
             >

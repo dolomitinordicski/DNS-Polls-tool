@@ -748,7 +748,13 @@ export async function getPrivateContacts(
 
   snapshot.docs.forEach(item => {
     const data = item.data() as Omit<PrivateParticipantContact, 'id'>;
-    if (!data.participantId || !data.email) return;
+    if (
+      !data.participantId ||
+      !data.email ||
+      data.participantId.startsWith('invitee-')
+    ) {
+      return;
+    }
 
     const contact: PrivateParticipantContact = {
       id: item.id,
