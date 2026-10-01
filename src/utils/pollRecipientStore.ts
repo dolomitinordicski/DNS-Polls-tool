@@ -73,6 +73,14 @@ export function formatPollRecipients(emails: string[]): string {
   return emails.join('\n');
 }
 
+export function clearPollRecipients(pollId: string): void {
+  const store = readRecipientMap();
+  if (!(pollId in store)) return;
+
+  delete store[pollId];
+  writeRecipientMap(store);
+}
+
 export interface RecipientSyncResult {
   emails: string[];
   cloudSynced: boolean;

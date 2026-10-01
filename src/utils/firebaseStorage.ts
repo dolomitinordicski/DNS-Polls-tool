@@ -1,4 +1,6 @@
 import { Poll } from '../types';
+import { deletePoll } from '../data/pollRepository';
+import { clearPollRecipients } from './pollRecipientStore';
 import { getPollShareUrl as getStorageShareUrl } from './storage';
 
 export type {
@@ -8,7 +10,6 @@ export type {
 } from '../data/pollRepository';
 
 export {
-  deletePoll as deletePollFromFirestore,
   fetchPolls as fetchPollsFromApi,
   finalizePollSlot as finalizePollSlotFirestore,
   getPoll as getPollFromFirestore,
@@ -31,6 +32,11 @@ export {
  */
 export function getPollShareUrl(poll: Poll): string {
   return getStorageShareUrl(poll);
+}
+
+export async function deletePollFromFirestore(pollId: string): Promise<void> {
+  await deletePoll(pollId);
+  clearPollRecipients(pollId);
 }
 
 export { getLegacyPollCandidateIds } from '../data/pollCache';

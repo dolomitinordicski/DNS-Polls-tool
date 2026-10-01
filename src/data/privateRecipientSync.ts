@@ -66,7 +66,27 @@ export async function signInPrivateRecipientSync(): Promise<User> {
     throw new Error('Firebase private data sync is unavailable.');
   }
 
-  const result = await signInWithPopup(auth, privateDataAuthProvider);
+  let result;
+
+  try {
+    result = await signInWithPopup(auth, privateDataAuthProvider);
+  } catch (error) {
+    const code = (error as { code?: string })?.code || '';
+
+    if (code === 'auth/operation-not-allowed') {
+      throw new Error(
+        'Google Authentication non è ancora abilitato nel progetto Firebase dns-polls.',
+      );
+    }
+
+    if (code === 'auth/unauthorized-domain') {
+      throw new Error(
+        'dolomitinordicski.github.io non è ancora autorizzato in Firebase Authentication.',
+      );
+    }
+
+    throw error;
+  }
 
   if (!isAuthorizedPrivateDataUser(result.user)) {
     await signOut(auth);
@@ -76,6 +96,14 @@ export async function signInPrivateRecipientSync(): Promise<User> {
   }
 
   return result.user;
+}
+
+export async function ensurePrivateDataAdminSession(): Promise<User> {
+  if (auth?.currentUser && isAuthorizedPrivateDataUser(auth.currentUser)) {
+    return auth.currentUser;
+  }
+
+  return signInPrivateRecipientSync();
 }
 
 export async function signOutPrivateRecipientSync(): Promise<void> {
@@ -104,12 +132,103 @@ function privateContactsRef(pollId: string) {
   );
 }
 
+function canonicalParticipantContactId(participantId: string): string {
+  return `participant-${participantId}`;
+}
+
+async function compactParticipantContacts(pollId: string): Promise<void> {
+  if (!db || !auth || !isAuthorizedPrivateDataUser(auth.currentUser)) {
+    return;
+  }
+
+  const snapshot = await getDocs(privateContactsRef(pollId));
+  const latestByParticipant = new Map<
+    string,
+    {
+      participantId: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      updatedAt: string;
+    }
+  >();
+
+  snapshot.docs.forEach(item => {
+    const data = item.data() as {
+      participantId?: string;
+      email?: string;
+      firstName?: string;
+      lastName?: string;
+      updatedAt?: string;
+    };
+
+    if (
+      !data.participantId ||
+      !data.email ||
+      data.participantId.startsWith(INVITEE_PREFIX)
+    ) {
+      return;
+    }
+
+    const normalized = {
+      participantId: data.participantId,
+      email: data.email.trim().toLowerCase(),
+      firstName: data.firstName || '',
+      lastName: data.lastName || '',
+      updatedAt: data.updatedAt || '',
+    };
+
+    const previous = latestByParticipant.get(data.participantId);
+    if (
+      !previous ||
+      normalized.updatedAt >= previous.updatedAt
+    ) {
+      latestByParticipant.set(data.participantId, normalized);
+    }
+  });
+
+  if (latestByParticipant.size === 0) return;
+
+  const batch = writeBatch(db);
+  let hasWrites = false;
+
+  for (const [participantId, latest] of latestByParticipant) {
+    const canonicalId = canonicalParticipantContactId(participantId);
+    const canonicalRef = doc(
+      db,
+      POLLS_COLLECTION,
+      pollId,
+      PRIVATE_CONTACTS_COLLECTION,
+      canonicalId,
+    );
+
+    batch.set(canonicalRef, latest, { merge: true });
+    hasWrites = true;
+
+    snapshot.docs.forEach(item => {
+      const data = item.data() as { participantId?: string };
+      if (
+        data.participantId === participantId &&
+        item.id !== canonicalId
+      ) {
+        batch.delete(item.ref);
+      }
+    });
+  }
+
+  if (hasWrites) {
+    await batch.commit();
+  }
+}
+
 export async function loadPrivatePollRecipients(
   pollId: string,
 ): Promise<string[]> {
   if (!db || !auth || !isAuthorizedPrivateDataUser(auth.currentUser)) {
     return [];
   }
+
+  await compactParticipantContacts(pollId);
 
   const snapshot = await getDocs(privateContactsRef(pollId));
   const emails = new Set<string>();

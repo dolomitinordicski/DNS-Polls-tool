@@ -46,26 +46,51 @@ service cloud.firestore {
       // DNS Polls must remain usable while the final DNS v.01 auth model is
       // defined. Poll definitions contain no participant private e-mail data.
       allow read: if true;
-      allow create, update, delete: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
 
       match /responses/{responseId} {
         allow read: if true;
         allow create, update: if validResponse(responseId);
-
-        // Required by the current open operational admin workflow.
-        // Private participant e-mails are stored separately and are not exposed
-        // by this collection.
-        allow delete: if true;
+        allow delete: if isAdmin();
       }
 
       match /privateContacts/{contactId} {
-        // Participants may submit their own contact together with a response,
-        // but private e-mail records are never publicly readable.
-        allow create: if validPrivateContact();
+        function isCanonicalParticipantContact() {
+          return contactId ==
+            'participant-' + request.resource.data.participantId;
+        }
 
-        // Administrative access to private contacts remains authenticated even
-        // while the poll-management UI itself is temporarily open.
-        allow read, update, delete: if isAdmin();
+        function participantResponseExistsAfter() {
+          return existsAfter(
+            /databases/$(database)/documents/polls/$(pollId)/responses/$(request.resource.data.participantId)
+          );
+        }
+
+        // A participant can create only the canonical private-contact document
+        // tied to the public response ID. Invitee-list records are admin-only.
+        allow create: if validPrivateContact()
+          && (
+            isAdmin()
+            || (
+              isCanonicalParticipantContact()
+              && participantResponseExistsAfter()
+            )
+          );
+
+        // Public updates may refresh the same canonical record but may not
+        // change its participant identity or e-mail address.
+        allow update: if isAdmin()
+          || (
+            validPrivateContact()
+            && isCanonicalParticipantContact()
+            && participantResponseExistsAfter()
+            && resource.data.participantId ==
+              request.resource.data.participantId
+            && resource.data.email == request.resource.data.email
+          );
+
+        allow read, delete: if isAdmin();
       }
     }
 

@@ -33,6 +33,7 @@ import { PollCalendarView } from './PollCalendarView';
 import { ShareModal } from './ShareModal';
 import { EditPollModal } from './EditPollModal';
 import { FinalizationPanel } from './FinalizationPanel';
+import { ensurePrivateDataAdminSession } from '../data/privateRecipientSync';
 
 interface PollViewProps {
   poll: Poll;
@@ -90,6 +91,7 @@ export const PollView: React.FC<PollViewProps> = ({
         confirmedOption: 'Bestätigter Termin',
         yesResponses: 'Ja-Antworten',
         noDescription: 'Keine zusätzlichen Hinweise.',
+        deleteAuthError: 'Für eine vollständige Löschung inklusive privater E-Mail-Daten ist die DNS-Admin-Anmeldung erforderlich.',
       }
     : {
         organizerView: 'Vista organizzatore',
@@ -117,6 +119,7 @@ export const PollView: React.FC<PollViewProps> = ({
         confirmedOption: 'Data confermata',
         yesResponses: 'Risposte sì',
         noDescription: 'Nessuna nota aggiuntiva.',
+        deleteAuthError: 'Per eliminare completamente il poll, incluse le e-mail private, è necessario l’accesso amministratore DNS.',
       };
 
   useEffect(() => {
@@ -150,8 +153,19 @@ export const PollView: React.FC<PollViewProps> = ({
 
   const handleDeleteThisPoll = async () => {
     if (!window.confirm(t('confirmDelete', currentLang))) return;
-    await deletePollFromFirestore(poll.id);
-    onBackToList();
+
+    try {
+      await ensurePrivateDataAdminSession();
+      await deletePollFromFirestore(poll.id);
+      onBackToList();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : '';
+      window.alert(
+        detail
+          ? `${copy.deleteAuthError}\n\n${detail}`
+          : copy.deleteAuthError,
+      );
+    }
   };
 
   const organizerActions = (
