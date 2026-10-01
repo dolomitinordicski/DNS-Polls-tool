@@ -61,8 +61,8 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ currentLang, onSignIn, e
 
         <p className="text-[10px] text-slate-500 leading-relaxed">
           {currentLang === 'de'
-            ? 'Die Anmeldung schützt die Verwaltungsfunktionen. Die Firestore-Regeln werden zusätzlich serverseitig eingeschränkt.'
-            : 'Il login protegge le funzioni amministrative. Le regole Firestore verranno inoltre ristrette lato server.'}
+            ? 'Die Anmeldung schützt die Verwaltungsfunktionen. Die Firestore-Regeln erzwingen die Berechtigungen zusätzlich serverseitig.'
+            : 'Il login protegge le funzioni amministrative. Le regole Firestore applicano inoltre i permessi lato server.'}
         </p>
       </div>
     </div>
