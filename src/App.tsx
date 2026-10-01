@@ -209,7 +209,6 @@ export default function App() {
         coreStatus={coreStatus}
         currentLang={currentLang}
         onLanguageChange={setCurrentLang}
-        designSystem={designSystem}
         isInviteeMode={isInviteeLink && currentView === 'view'}
       />
 
