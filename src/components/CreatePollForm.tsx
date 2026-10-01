@@ -13,6 +13,7 @@ import {
   Plus,
   Trash2,
   User,
+  Users,
 } from 'lucide-react';
 import { Poll, TimeSlot } from '../types';
 import { formatDate } from '../utils/dateUtils';
@@ -23,6 +24,7 @@ import {
   saveAutocompleteEntry,
 } from '../utils/autocompleteStore';
 import { parsePollPrompt } from '../utils/localPromptParser';
+import { parseRecipientEmails, savePollRecipients } from '../utils/pollRecipientStore';
 
 const PROMPT_HELPERS = {
   it: `Trasforma il testo che ti invio in un prompt pronto per DNS Polls. Restituisci SOLO il prompt finale, senza spiegazioni. Strutturalo così: titolo della riunione; luogo oppure "Online"; breve descrizione/ordine del giorno; tutte le date complete con TUTTE le fasce orarie per ciascun giorno. Usa date esplicite (es. 1 ottobre 2026) e orari nel formato 08:00-09:30. Se più date hanno gli stessi orari, puoi raggrupparle (es. 1, 2, 6 e 7 ottobre: 08:00-09:30, 10:00-11:30, 14:00-15:30). Non inserire organizzatore o email: DNS Polls li compila automaticamente. Testo da trasformare:`,
@@ -63,6 +65,11 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
         detailsKicker: '01 · Sitzung',
         datesKicker: '02 · Termine',
         optionsKicker: '03 · Antworten',
+        recipientsKicker: '04 · Empfänger',
+        recipientsTitle: 'Einladungsliste',
+        recipientsHint: 'E-Mail-Adressen für diese Umfrage. Eine Adresse pro Zeile oder durch Komma/Semikolon getrennt. Die Liste bleibt poll-spezifisch in diesem Browser und wird später für Teilen und Outlook/ICS wiederverwendet.',
+        recipientsPlaceholder: 'name@example.com\nteam@example.com',
+        recipientsSummary: 'Empfänger',
         summaryKicker: 'Übersicht',
         summaryTitle: 'Vor dem Erstellen',
         detailsReady: 'Sitzungsdaten',
@@ -102,6 +109,11 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
         detailsKicker: '01 · Riunione',
         datesKicker: '02 · Date',
         optionsKicker: '03 · Risposte',
+        recipientsKicker: '04 · Destinatari',
+        recipientsTitle: 'Lista inviti',
+        recipientsHint: 'Indirizzi e-mail per questo sondaggio. Uno per riga oppure separati da virgola/punto e virgola. La lista resta legata al poll in questo browser e viene riutilizzata in Condividi e Outlook/ICS.',
+        recipientsPlaceholder: 'nome@example.com\nteam@example.com',
+        recipientsSummary: 'Destinatari',
         summaryKicker: 'Riepilogo',
         summaryTitle: 'Prima di creare',
         detailsReady: 'Dati riunione',
@@ -142,6 +154,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
   const [organizerName, setOrganizerName] = useState('Dolomiti NordicSki');
   const [organizerEmail, setOrganizerEmail] = useState('management@dolomitinordicski.com');
   const [allowMaybe, setAllowMaybe] = useState(true);
+  const [recipientInput, setRecipientInput] = useState('');
 
   const [selectedDate, setSelectedDate] = useState('');
   const [customTime, setCustomTime] = useState('09:30 - 11:00');
@@ -163,6 +176,10 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
 
   const detailsReady = Boolean(title.trim() && organizerName.trim());
   const datesReady = slots.length > 0;
+  const recipients = useMemo(
+    () => parseRecipientEmails(recipientInput),
+    [recipientInput],
+  );
 
   const handleGenerateFromPrompt = (textToUse?: string) => {
     const query = (textToUse ?? promptText).trim();
@@ -265,6 +282,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
       };
 
       await savePollToFirestore(newPoll);
+      savePollRecipients(newPoll.id, recipientInput);
       onPollCreated(newPoll);
     } catch (saveError) {
       console.error('Poll creation failed:', saveError);
@@ -751,6 +769,43 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
             </label>
           </section>
 
+          <section className="dns-card p-5 md:p-6" data-dns-reveal>
+            <div className="flex flex-col justify-between gap-3 border-b border-dns-mid/10 pb-4 sm:flex-row sm:items-start">
+              <div>
+                <div className="dns-kicker">{copy.recipientsKicker}</div>
+                <h2 className="mt-1 text-[18px] font-semibold text-dns-deep">
+                  {copy.recipientsTitle}
+                </h2>
+                <p className="mt-1 max-w-2xl font-alt text-[10px] leading-relaxed text-dns-muted">
+                  {copy.recipientsHint}
+                </p>
+              </div>
+
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-dns-mid/15 bg-dns-bg px-2.5 py-1 font-alt text-[9px] font-semibold text-dns-mid">
+                <Users className="h-3.5 w-3.5" />
+                {recipients.length}
+              </span>
+            </div>
+
+            <label className="mt-4 block">
+              <span className="sr-only">{copy.recipientsTitle}</span>
+              <textarea
+                rows={6}
+                value={recipientInput}
+                onChange={event => setRecipientInput(event.target.value)}
+                placeholder={copy.recipientsPlaceholder}
+                className="dns-input w-full resize-y font-mono text-[10px]"
+              />
+            </label>
+
+            <div className="mt-2 flex items-center justify-between gap-3 font-alt text-[9px] text-dns-muted">
+              <span>{copy.optional}</span>
+              <span>
+                {recipients.length} {copy.recipientsSummary.toLowerCase()}
+              </span>
+            </div>
+          </section>
+
           {error && (
             <div
               className="rounded-md border border-red-300 bg-red-50 px-4 py-3 font-alt text-[11px] font-semibold text-red-800"
@@ -806,6 +861,15 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
                 </span>
                 <span className="text-right text-[10px] font-semibold text-dns-deep">
                   {allowMaybe ? copy.yesMaybeNo : copy.yesNo}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 py-3">
+                <span className="font-alt text-[10px] text-dns-muted">
+                  {copy.recipientsSummary}
+                </span>
+                <span className="text-right text-[10px] font-semibold text-dns-deep">
+                  {recipients.length}
                 </span>
               </div>
             </div>
