@@ -24,7 +24,8 @@ import {
   saveAutocompleteEntry,
 } from '../utils/autocompleteStore';
 import { parsePollPrompt } from '../utils/localPromptParser';
-import { parseRecipientEmails, savePollRecipients } from '../utils/pollRecipientStore';
+import { parseRecipientEmails, savePollRecipientsSynced } from '../utils/pollRecipientStore';
+import { PrivateRecipientSyncControl } from './PrivateRecipientSyncControl';
 
 const PROMPT_HELPERS = {
   it: `Trasforma il testo che ti invio in un prompt pronto per DNS Polls. Restituisci SOLO il prompt finale, senza spiegazioni. Strutturalo così: titolo della riunione; luogo oppure "Online"; breve descrizione/ordine del giorno; tutte le date complete con TUTTE le fasce orarie per ciascun giorno. Usa date esplicite (es. 1 ottobre 2026) e orari nel formato 08:00-09:30. Se più date hanno gli stessi orari, puoi raggrupparle (es. 1, 2, 6 e 7 ottobre: 08:00-09:30, 10:00-11:30, 14:00-15:30). Non inserire organizzatore o email: DNS Polls li compila automaticamente. Testo da trasformare:`,
@@ -67,7 +68,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
         optionsKicker: '03 · Antworten',
         recipientsKicker: '04 · Empfänger',
         recipientsTitle: 'Einladungsliste',
-        recipientsHint: 'E-Mail-Adressen für diese Umfrage. Eine Adresse pro Zeile oder durch Komma/Semikolon getrennt. Die Liste bleibt poll-spezifisch in diesem Browser und wird später für Teilen und Outlook/ICS wiederverwendet.',
+        recipientsHint: 'E-Mail-Adressen für diese Umfrage. Eine Adresse pro Zeile oder durch Komma/Semikolon getrennt. Lokal funktioniert die Liste immer; mit privatem Cloud-Sync ist sie auch auf anderen angemeldeten Browsern verfügbar.',
         recipientsPlaceholder: 'name@example.com\nteam@example.com',
         recipientsSummary: 'Empfänger',
         summaryKicker: 'Übersicht',
@@ -111,7 +112,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
         optionsKicker: '03 · Risposte',
         recipientsKicker: '04 · Destinatari',
         recipientsTitle: 'Lista inviti',
-        recipientsHint: 'Indirizzi e-mail per questo sondaggio. Uno per riga oppure separati da virgola/punto e virgola. La lista resta legata al poll in questo browser e viene riutilizzata in Condividi e Outlook/ICS.',
+        recipientsHint: 'Indirizzi e-mail per questo sondaggio. Uno per riga oppure separati da virgola/punto e virgola. La lista funziona sempre in locale; con il sync cloud privato è disponibile anche sugli altri browser autenticati.',
         recipientsPlaceholder: 'nome@example.com\nteam@example.com',
         recipientsSummary: 'Destinatari',
         summaryKicker: 'Riepilogo',
@@ -282,7 +283,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
       };
 
       await savePollToFirestore(newPoll);
-      savePollRecipients(newPoll.id, recipientInput);
+      await savePollRecipientsSynced(newPoll.id, recipientInput);
       onPollCreated(newPoll);
     } catch (saveError) {
       console.error('Poll creation failed:', saveError);
@@ -803,6 +804,10 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
               <span>
                 {recipients.length} {copy.recipientsSummary.toLowerCase()}
               </span>
+            </div>
+
+            <div className="mt-4 border-t border-dns-mid/10 pt-4">
+              <PrivateRecipientSyncControl currentLang={currentLang} />
             </div>
           </section>
 
