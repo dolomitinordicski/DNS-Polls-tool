@@ -64,15 +64,19 @@ export function useAccessibleDialog<T extends HTMLElement>({
 
       if (event.key !== 'Tab') return;
 
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      ).filter(element => {
-        const style = window.getComputedStyle(element);
-        return (
-          !element.hasAttribute('disabled') &&
+      const focusable: HTMLElement[] = [];
+
+      dialog.querySelectorAll(FOCUSABLE_SELECTOR).forEach(node => {
+        if (!(node instanceof HTMLElement)) return;
+
+        const style = window.getComputedStyle(node);
+        if (
+          !node.hasAttribute('disabled') &&
           style.display !== 'none' &&
           style.visibility !== 'hidden'
-        );
+        ) {
+          focusable.push(node);
+        }
       });
 
       if (focusable.length === 0) {
