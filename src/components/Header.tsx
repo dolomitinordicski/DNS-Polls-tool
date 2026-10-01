@@ -15,7 +15,6 @@ interface HeaderProps {
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
   designSystem: DNSDesignSystem;
-  activePollTitle?: string;
   onQuickShareApp?: () => void;
   coreStatus: DNSCoreHeaderStatus;
   isInviteeMode?: boolean;
@@ -27,7 +26,6 @@ export const Header: React.FC<HeaderProps> = ({
   currentLang,
   onLanguageChange,
   designSystem,
-  activePollTitle,
   onQuickShareApp,
   coreStatus,
   isInviteeMode = false,
@@ -64,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
   useEffect(() => {
     navigationRuntimeRef.current?.setActiveSection(currentView);
     navigationRuntimeRef.current?.refresh();
-  }, [currentView, activePollTitle, isInviteeMode]);
+  }, [currentView, isInviteeMode]);
 
   const subtitle = isInviteeMode
     ? t('inviteeHeaderTag', currentLang)
