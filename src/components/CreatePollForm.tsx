@@ -282,7 +282,6 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
     <form
       onSubmit={handleSubmit}
       className="dns-shell py-5 font-body"
-      noValidate
     >
       <datalist id="organizers-list">
         {autocomplete.organizers.map((item, index) => (
@@ -490,6 +489,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
                 <span className="dns-kicker">{t('pollTitleLabel', currentLang)}</span>
                 <input
                   type="text"
+                  required
                   value={title}
                   onChange={event => {
                     setTitle(event.target.value);
@@ -508,6 +508,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
                 </span>
                 <input
                   type="text"
+                  required
                   list="organizers-list"
                   value={organizerName}
                   onChange={event => {
