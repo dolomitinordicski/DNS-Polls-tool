@@ -26,6 +26,10 @@
   --font-heading:'Be Vietnam Pro',system-ui,-apple-system,sans-serif;
   --font-body:'Be Vietnam Pro',system-ui,-apple-system,sans-serif;
   --font-alt:'Roboto',system-ui,-apple-system,sans-serif;
+  --dns-motion-fast:200ms;
+  --dns-motion-standard:300ms;
+  --dns-motion-reveal:600ms;
+  --dns-motion-easing:ease;
 }
 
 *{box-sizing:border-box}
