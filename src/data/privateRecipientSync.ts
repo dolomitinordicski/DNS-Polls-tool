@@ -145,14 +145,11 @@ async function compactParticipantContacts(pollId: string): Promise<void> {
   const latestByParticipant = new Map<
     string,
     {
-      ref: typeof snapshot.docs[number]['ref'];
-      data: {
-        participantId: string;
-        email: string;
-        firstName: string;
-        lastName: string;
-        updatedAt: string;
-      };
+      participantId: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+      updatedAt: string;
     }
   >();
 
@@ -184,12 +181,9 @@ async function compactParticipantContacts(pollId: string): Promise<void> {
     const previous = latestByParticipant.get(data.participantId);
     if (
       !previous ||
-      normalized.updatedAt >= previous.data.updatedAt
+      normalized.updatedAt >= previous.updatedAt
     ) {
-      latestByParticipant.set(data.participantId, {
-        ref: item.ref,
-        data: normalized,
-      });
+      latestByParticipant.set(data.participantId, normalized);
     }
   });
 
@@ -208,7 +202,7 @@ async function compactParticipantContacts(pollId: string): Promise<void> {
       canonicalId,
     );
 
-    batch.set(canonicalRef, latest.data, { merge: true });
+    batch.set(canonicalRef, latest, { merge: true });
     hasWrites = true;
 
     snapshot.docs.forEach(item => {
