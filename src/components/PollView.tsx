@@ -5,7 +5,6 @@ import {
   Check,
   CheckCircle2,
   Copy,
-  Download,
   Edit3,
   ExternalLink,
   List,
@@ -22,12 +21,10 @@ import {
   getSlotVoteSummary,
   getTopVotedSlot,
 } from '../utils/dateUtils';
-import { generateICalFile } from '../utils/storage';
 import {
   deletePollFromFirestore,
   finalizePollSlotFirestore,
   getPollShareUrl,
-  savePollToFirestore,
   submitParticipantVote,
 } from '../utils/firebaseStorage';
 import { Language, t } from '../utils/i18n';
@@ -35,6 +32,7 @@ import { PollTable } from './PollTable';
 import { PollCalendarView } from './PollCalendarView';
 import { ShareModal } from './ShareModal';
 import { EditPollModal } from './EditPollModal';
+import { FinalizationPanel } from './FinalizationPanel';
 
 interface PollViewProps {
   poll: Poll;
@@ -56,9 +54,6 @@ export const PollView: React.FC<PollViewProps> = ({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [copiedQuick, setCopiedQuick] = useState(false);
   const [previewInvitee, setPreviewInvitee] = useState(false);
-  const [conferenceUrl, setConferenceUrl] = useState(poll.conferenceUrl || '');
-  const [conferenceSaved, setConferenceSaved] = useState(false);
-  const [isSavingConference, setIsSavingConference] = useState(false);
 
   const isInvitee = isInviteeMode || previewInvitee;
   const topSlotId = getTopVotedSlot(poll.slots, poll.participants);
@@ -67,11 +62,6 @@ export const PollView: React.FC<PollViewProps> = ({
   const selectedSummary = selectedSlot
     ? getSlotVoteSummary(selectedSlot.id, poll.participants)
     : null;
-
-  const isOnlineMeeting =
-    /online|teams|zoom|meet|videokonferenz|video.?conference/i.test(
-      poll.location || '',
-    ) || Boolean(poll.conferenceUrl);
 
   const copy = currentLang === 'de'
     ? {
@@ -88,11 +78,6 @@ export const PollView: React.FC<PollViewProps> = ({
         actions: 'Verwaltung',
         responseSection: 'Verfügbarkeit',
         calendarSection: 'Kalender',
-        conference: 'Videokonferenz-Link',
-        conferenceHint: 'Optional. Der Link wird in die ICS-Datei übernommen.',
-        save: 'Speichern',
-        saved: 'Gespeichert',
-        saving: 'Speichert…',
         invitationKicker: 'Terminanfrage',
         invitationTitle: 'Bitte geben Sie Ihre Verfügbarkeit an',
         invitationDesc: 'Wählen Sie für jeden vorgeschlagenen Termin eine Antwort und senden Sie Ihre Angaben anschließend ab.',
@@ -101,7 +86,6 @@ export const PollView: React.FC<PollViewProps> = ({
         copied: 'Kopiert',
         edit: 'Bearbeiten',
         delete: 'Löschen',
-        calendarExport: 'iCal herunterladen',
         topOption: 'Beste Option',
         confirmedOption: 'Bestätigter Termin',
         yesResponses: 'Ja-Antworten',
@@ -121,11 +105,6 @@ export const PollView: React.FC<PollViewProps> = ({
         actions: 'Gestione',
         responseSection: 'Disponibilità',
         calendarSection: 'Calendario',
-        conference: 'Link videoconferenza',
-        conferenceHint: 'Opzionale. Il link verrà inserito nel file ICS.',
-        save: 'Salva',
-        saved: 'Salvato',
-        saving: 'Salvataggio…',
         invitationKicker: 'Richiesta appuntamento',
         invitationTitle: 'Indica la tua disponibilità',
         invitationDesc: 'Scegli una risposta per ogni data proposta e invia poi i tuoi dati.',
@@ -134,16 +113,11 @@ export const PollView: React.FC<PollViewProps> = ({
         copied: 'Copiato',
         edit: 'Modifica',
         delete: 'Elimina',
-        calendarExport: 'Scarica iCal',
         topOption: 'Opzione migliore',
         confirmedOption: 'Data confermata',
         yesResponses: 'Risposte sì',
         noDescription: 'Nessuna nota aggiuntiva.',
       };
-
-  useEffect(() => {
-    setConferenceUrl(poll.conferenceUrl || '');
-  }, [poll.conferenceUrl]);
 
   useEffect(() => {
     if (isInvitee) setActiveTab('table');
@@ -166,32 +140,6 @@ export const PollView: React.FC<PollViewProps> = ({
   const handleFinalizeSlot = async (slotId: string) => {
     const updated = await finalizePollSlotFirestore(poll, slotId);
     onPollUpdated(updated);
-  };
-
-  const handleSaveConferenceUrl = async () => {
-    const raw = conferenceUrl.trim();
-    const normalized =
-      raw && !/^https?:\/\//i.test(raw)
-        ? `https://${raw}`
-        : raw;
-
-    setIsSavingConference(true);
-
-    try {
-      const updated: Poll = {
-        ...poll,
-        conferenceUrl: normalized || undefined,
-      };
-
-      await savePollToFirestore(updated);
-      setConferenceUrl(normalized);
-      setConferenceSaved(true);
-      onPollUpdated(updated);
-
-      window.setTimeout(() => setConferenceSaved(false), 2000);
-    } finally {
-      setIsSavingConference(false);
-    }
   };
 
   const handleQuickCopyLink = async () => {
@@ -445,70 +393,6 @@ export const PollView: React.FC<PollViewProps> = ({
 
       {detailCard}
 
-      {!isInvitee && poll.finalizedSlotId && selectedSlot && (
-        <section className="dns-card p-5 md:p-6" data-dns-reveal>
-          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-            <div className="min-w-0 flex-1">
-              <div className="dns-kicker">{copy.conference}</div>
-
-              {isOnlineMeeting && (
-                <>
-                  <div className="mt-2 flex max-w-2xl flex-col gap-2 sm:flex-row">
-                    <input
-                      type="url"
-                      value={conferenceUrl}
-                      onChange={event => {
-                        setConferenceUrl(event.target.value);
-                        setConferenceSaved(false);
-                      }}
-                      placeholder="https://..."
-                      className="dns-input h-10 min-w-0 flex-1"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void handleSaveConferenceUrl()}
-                      disabled={isSavingConference}
-                      data-dns-press
-                      className="dns-btn-secondary min-h-10 disabled:opacity-50"
-                    >
-                      {isSavingConference
-                        ? copy.saving
-                        : conferenceSaved
-                          ? copy.saved
-                          : copy.save}
-                    </button>
-                  </div>
-
-                  <p className="mt-2 font-alt text-[9px] text-dns-muted">
-                    {copy.conferenceHint}
-                  </p>
-                </>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                generateICalFile(
-                  {
-                    ...poll,
-                    conferenceUrl:
-                      conferenceUrl.trim() || poll.conferenceUrl,
-                  },
-                  selectedSlot.id,
-                )
-              }
-              id="export-ical-btn"
-              data-dns-press
-              className="dns-btn-primary min-h-10 shrink-0"
-            >
-              <Download className="h-4 w-4" />
-              {copy.calendarExport}
-            </button>
-          </div>
-        </section>
-      )}
-
       {!isInvitee && (
         <div
           className="flex flex-wrap items-center justify-between gap-3 border-b border-dns-mid/10 pb-3"
@@ -559,7 +443,6 @@ export const PollView: React.FC<PollViewProps> = ({
         <PollTable
           poll={poll}
           onVoteSubmit={handleVoteSubmit}
-          onFinalizeSlot={handleFinalizeSlot}
           isOrganizerView={!isInvitee}
           currentLang={currentLang}
         />
@@ -571,6 +454,15 @@ export const PollView: React.FC<PollViewProps> = ({
           selectedPollId={poll.id}
           onSelectPoll={() => {}}
           currentLang={currentLang}
+        />
+      )}
+
+      {!isInvitee && (
+        <FinalizationPanel
+          poll={poll}
+          currentLang={currentLang}
+          onFinalizeSlot={handleFinalizeSlot}
+          onPollUpdated={onPollUpdated}
         />
       )}
 

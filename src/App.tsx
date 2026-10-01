@@ -224,25 +224,14 @@ export default function App() {
         )}
 
         {!isInviteeLink && currentView === 'calendar' && (
-          <div data-dns-reveal className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-body">
-            <div className="flex items-center justify-between border-b border-slate-300 pb-4">
-              <div>
-                <h1 className="font-heading font-extrabold text-2xl text-slate-900 flex items-center gap-2">
-                  <CalendarIcon className="w-6 h-6 text-dns-primary" />
-                  {currentLang === 'de' ? 'Team-Kalenderansicht' : 'Visualizzazione Calendario Team'}
-                </h1>
-                <p className="text-xs text-slate-600 mt-1">
-                  {currentLang === 'de'
-                    ? 'Erkunde alle aktiven Umfragen auf dem Monatskalender, um beliebte Termine auf einen Blick zu sehen.'
-                    : 'Esplora tutti i sondaggi attivi sul calendario mensile per visualizzare a colpo d\'occhio le date più popolate.'}
-                </p>
-              </div>
-
+          <div data-dns-reveal className="dns-shell space-y-5 py-5 font-body">
+            <div className="flex justify-end">
               <button
+                type="button"
                 onClick={() => setCurrentView('list')}
                 data-dns-press
                 data-dns-hover
-                className="px-4 py-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 rounded-sm text-xs font-bold transition-colors shadow-xs"
+                className="dns-btn-secondary min-h-9"
               >
                 ← {t('btnAllPolls', currentLang)}
               </button>
