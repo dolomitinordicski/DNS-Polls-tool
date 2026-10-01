@@ -78,6 +78,14 @@ export async function signInPrivateRecipientSync(): Promise<User> {
   return result.user;
 }
 
+export async function ensurePrivateDataAdminSession(): Promise<User> {
+  if (auth?.currentUser && isAuthorizedPrivateDataUser(auth.currentUser)) {
+    return auth.currentUser;
+  }
+
+  return signInPrivateRecipientSync();
+}
+
 export async function signOutPrivateRecipientSync(): Promise<void> {
   if (!auth) return;
   await signOut(auth);
