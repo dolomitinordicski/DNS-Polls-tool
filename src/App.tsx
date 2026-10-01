@@ -147,7 +147,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-dns-bg text-dns-primary flex flex-col font-body selection:bg-dns-soft selection:text-dns-primary" data-dns-foundation="1.12.0">
+    <div className="min-h-screen bg-dns-bg text-dns-primary flex flex-col font-body selection:bg-dns-soft selection:text-dns-primary" data-dns-foundation="1.12.1">
       <Header
         currentView={currentView}
         onNavigate={handleNavigate}
