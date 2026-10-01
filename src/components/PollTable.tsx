@@ -33,7 +33,6 @@ interface PollTableProps {
     votes: Record<string, VoteStatus>,
     editingParticipantId?: string,
   ) => void | Promise<void>;
-  onFinalizeSlot?: (slotId: string) => void | Promise<void>;
   isOrganizerView?: boolean;
   currentLang?: Language;
 }
@@ -47,7 +46,6 @@ const voteTone: Record<VoteStatus, string> = {
 export const PollTable: React.FC<PollTableProps> = ({
   poll,
   onVoteSubmit,
-  onFinalizeSlot,
   isOrganizerView = false,
   currentLang = 'de',
 }) => {
@@ -87,7 +85,6 @@ export const PollTable: React.FC<PollTableProps> = ({
         edit: 'Bearbeiten',
         best: 'Beste Option',
         confirmed: 'Bestätigt',
-        chooseFinal: 'Endgültigen Termin bestätigen',
         noResponses: 'Noch keine Antworten eingegangen.',
         participant: 'Teilnehmer',
         yes: 'Ja',
@@ -118,7 +115,6 @@ export const PollTable: React.FC<PollTableProps> = ({
         edit: 'Modifica',
         best: 'Opzione migliore',
         confirmed: 'Confermata',
-        chooseFinal: 'Conferma data definitiva',
         noResponses: 'Nessuna risposta ricevuta.',
         participant: 'Partecipante',
         yes: 'Sì',
@@ -711,76 +707,11 @@ export const PollTable: React.FC<PollTableProps> = ({
     </section>
   );
 
-  const organizerFinalize = isOrganizerView && onFinalizeSlot && (
-    <section className="dns-card p-5 md:p-6" data-dns-reveal>
-      <div className="dns-kicker">{t('organizerPanelTitle', currentLang)}</div>
-      <h2 className="mt-1 text-[18px] font-semibold text-dns-deep">
-        {copy.chooseFinal}
-      </h2>
-      <p className="mt-1 font-alt text-[10px] leading-relaxed text-dns-muted">
-        {t('organizerPanelDesc', currentLang)}
-      </p>
-
-      <div className="mt-4 grid gap-2 md:grid-cols-2">
-        {slotSummaries.map(({ slot, summary }) => {
-          const date = formatDate(slot.date, currentLang);
-          const isSelected = poll.finalizedSlotId === slot.id;
-          const isTop = topSlotId === slot.id && poll.participants.length > 0;
-
-          return (
-            <button
-              key={slot.id}
-              type="button"
-              onClick={() => void onFinalizeSlot(slot.id)}
-              data-dns-press
-              className={[
-                'flex min-h-[72px] items-center justify-between gap-4 rounded-lg border p-3 text-left transition-colors',
-                isSelected
-                  ? 'border-emerald-400 bg-emerald-50'
-                  : 'border-dns-mid/15 bg-white hover:bg-dns-bg',
-              ].join(' ')}
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-dns-deep">
-                    {date.dayMonth}
-                  </span>
-                  {isTop && !isSelected && (
-                    <Trophy className="h-3.5 w-3.5 text-dns-mid" />
-                  )}
-                  {isSelected && (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
-                  )}
-                </div>
-                <div className="mt-1 flex items-center gap-1 font-alt text-[9px] text-dns-muted">
-                  <Clock className="h-3 w-3" />
-                  {slot.time || t('allDay', currentLang)}
-                </div>
-              </div>
-
-              <div className="text-right font-alt text-[9px] text-dns-muted">
-                <div>
-                  <strong className="text-emerald-800">{summary.yes}</strong> {copy.yes}
-                </div>
-                {poll.allowMaybe && (
-                  <div>
-                    <strong className="text-amber-800">{summary.maybe}</strong> {copy.maybe}
-                  </div>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </section>
-  );
-
   if (isOrganizerView) {
     return (
       <div className="space-y-5">
         {teamMatrix}
         {responseForm}
-        {organizerFinalize}
       </div>
     );
   }
