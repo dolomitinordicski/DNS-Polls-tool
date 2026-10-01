@@ -61,10 +61,22 @@ service cloud.firestore {
             'participant-' + request.resource.data.participantId;
         }
 
+        function participantResponseExistsAfter() {
+          return existsAfter(
+            /databases/$(database)/documents/polls/$(pollId)/responses/$(request.resource.data.participantId)
+          );
+        }
+
         // A participant can create only the canonical private-contact document
         // tied to the public response ID. Invitee-list records are admin-only.
         allow create: if validPrivateContact()
-          && (isAdmin() || isCanonicalParticipantContact());
+          && (
+            isAdmin()
+            || (
+              isCanonicalParticipantContact()
+              && participantResponseExistsAfter()
+            )
+          );
 
         // Public updates may refresh the same canonical record but may not
         // change its participant identity or e-mail address.
@@ -72,6 +84,7 @@ service cloud.firestore {
           || (
             validPrivateContact()
             && isCanonicalParticipantContact()
+            && participantResponseExistsAfter()
             && resource.data.participantId ==
               request.resource.data.participantId
             && resource.data.email == request.resource.data.email
