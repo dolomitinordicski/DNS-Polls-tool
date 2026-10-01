@@ -2,73 +2,265 @@
 @import "tailwindcss";
 
 @theme {
-  --color-dns-primary: #0D4D5E;
-  --color-dns-deep: #083845;
-  --color-dns-teal: #417483;
-  --color-dns-soft: #AAD0D1;
+  --color-dns-primary: var(--color-dns-deep);
+  --color-dns-deep: #0D4D5E;
+  --color-dns-mid: #417483;
+  --color-dns-teal: var(--color-dns-mid);
+  --color-dns-light: #AAD0D1;
+  --color-dns-soft: var(--color-dns-light);
   --color-dns-frosted: #E0F0F0;
-  --color-dns-bg: #f4f8f9;
+  --color-dns-bg: #F4F8F9;
+  --color-dns-muted: #5A7F8A;
   --font-heading: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
   --font-body: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
   --font-alt: 'Roboto', system-ui, -apple-system, sans-serif;
   --font-sans: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
 }
 
-:root{
-  --dns-primary:#0D4D5E;
-  --dns-deep:#083845;
-  --dns-teal:#417483;
-  --dns-soft:#AAD0D1;
-  --dns-frosted:#E0F0F0;
-  --dns-bg:#f4f8f9;
-  --dns-card:#fff;
-  --dns-border:rgba(65,116,131,.20);
-  --font-heading:'Be Vietnam Pro',system-ui,-apple-system,sans-serif;
-  --font-body:'Be Vietnam Pro',system-ui,-apple-system,sans-serif;
-  --font-alt:'Roboto',system-ui,-apple-system,sans-serif;
-  --dns-motion-fast:200ms;
-  --dns-motion-standard:300ms;
-  --dns-motion-reveal:600ms;
-  --dns-motion-easing:ease;
+:root {
+  --color-dns-deep: #0D4D5E;
+  --color-dns-mid: #417483;
+  --color-dns-light: #AAD0D1;
+  --color-dns-bg: #F4F8F9;
+  --color-dns-surface: #FFFFFF;
+  --color-dns-dark-text: #313131;
+  --color-dns-muted: #5A7F8A;
+  --color-dns-border: rgba(65,116,131,.20);
+  --color-dns-subtle-border: rgba(65,116,131,.08);
+  --color-dns-primary-dark: #08343F;
+  --color-dns-secondary-dark: #7BBABC;
+
+  --dns-primary: var(--color-dns-deep);
+  --dns-deep: var(--color-dns-primary-dark);
+  --dns-teal: var(--color-dns-mid);
+  --dns-soft: var(--color-dns-light);
+  --dns-bg: var(--color-dns-bg);
+  --dns-card: var(--color-dns-surface);
+  --dns-border: var(--color-dns-border);
+
+  --font-heading: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-body: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-display: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-alt: 'Roboto', system-ui, -apple-system, sans-serif;
+
+  --dns-card-radius: 10px;
+  --dns-control-radius: 6px;
+  --dns-badge-radius: 20px;
+  --dns-card-shadow: 0 1px 4px rgba(13,77,94,.07);
+  --dns-header-shadow: 0 1px 0 rgba(255,255,255,.08);
+  --dns-floating-shadow: 0 4px 6px rgba(0,0,0,.10);
+
+  --dns-motion-fast: 200ms;
+  --dns-motion-standard: 300ms;
+  --dns-motion-reveal: 600ms;
+  --dns-motion-easing: ease;
+
+  --dns-tab-bg: #417483;
+  --dns-tab-text: rgba(255,255,255,.60);
+  --dns-tab-active: #FFFFFF;
+  --dns-tab-hover: rgba(255,255,255,.85);
+  --dns-tab-indicator: #FFFFFF;
+  --dns-tab-indicator-width: 3px;
+  --dns-tab-size: 11px;
+  --dns-tab-weight: 600;
+  --dns-tab-tracking: .06em;
+  --dns-nav-surface-bg: rgba(65,116,131,.94);
+  --dns-nav-backdrop-blur: 6px;
+  --dns-scroll-progress-height: 3px;
+  --dns-scroll-progress-color: #AAD0D1;
+  --dns-scroll-progress-track: transparent;
+
+  --dns-header-height: 0px;
+  --dns-sticky-stack-height: 0px;
 }
 
-*{box-sizing:border-box}
-html{background:var(--dns-bg)}
-body{
-  margin:0;
-  min-height:100vh;
-  font-family:var(--font-body);
-  background:var(--dns-bg);
-  color:var(--dns-primary);
+* {
+  box-sizing: border-box;
 }
-h1,h2,h3,h4,h5,h6{font-family:var(--font-heading)}
-.font-alt{font-family:var(--font-alt)}
+
+html {
+  background: var(--color-dns-bg);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-dns-bg);
+  color: var(--color-dns-deep);
+  font-family: var(--font-body);
+  font-size: var(--dns-base-font-size, 13px);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.font-alt {
+  font-family: var(--font-alt);
+}
 
 @layer components {
-  .dns-shell { @apply max-w-6xl mx-auto px-4 md:px-[1.8rem]; }
-  .dns-card { @apply bg-white rounded-[10px] shadow-[0_1px_4px_rgba(13,77,94,.07)] border border-[rgba(65,116,131,.14)]; }
-  .dns-kpi { @apply bg-white rounded-[10px] border-t-[3px] border-t-dns-soft shadow-[0_1px_4px_rgba(13,77,94,.07)] p-4; }
-  .dns-section-title { @apply font-heading text-[11px] font-bold uppercase tracking-[.07em] text-dns-primary; }
-  .dns-secondary { @apply font-alt text-[10px] text-[#5a7f8a]; }
-  .dns-btn { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-[11px] font-semibold tracking-[.02em] transition-colors; }
-  .dns-btn-primary { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-[11px] font-semibold tracking-[.02em] transition-colors bg-dns-primary text-white hover:bg-dns-teal; }
-  .dns-btn-secondary { @apply inline-flex items-center justify-center gap-1.5 rounded-md px-3.5 py-2 text-[11px] font-semibold tracking-[.02em] transition-colors bg-white text-dns-primary border border-[rgba(65,116,131,.22)] hover:bg-dns-primary/[.04]; }
-  .dns-input { @apply bg-white border border-[rgba(65,116,131,.22)] rounded-md px-3 py-2 text-[12px] text-dns-primary focus:outline-none focus:border-dns-teal focus:ring-1 focus:ring-dns-teal/15; }
+  .dns-shell {
+    @apply mx-auto max-w-[1440px] px-4 md:px-[1.8rem];
+  }
+
+  .dns-card {
+    background: var(--color-dns-surface);
+    border: 1px solid var(--color-dns-subtle-border);
+    border-radius: var(--dns-card-radius);
+    box-shadow: var(--dns-card-shadow);
+  }
+
+  .dns-kpi {
+    background: var(--color-dns-surface);
+    border: 1px solid var(--color-dns-subtle-border);
+    border-top: 3px solid var(--color-dns-light);
+    border-radius: var(--dns-card-radius);
+    box-shadow: var(--dns-card-shadow);
+    padding: 1rem;
+  }
+
+  .dns-section-title {
+    color: var(--color-dns-deep);
+    font-family: var(--font-heading);
+    font-size: var(--dns-section-title-size, 11px);
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+  }
+
+  .dns-secondary {
+    color: var(--color-dns-muted);
+    font-family: var(--font-alt);
+    font-size: 10px;
+  }
+
+  .dns-btn,
+  .dns-btn-primary,
+  .dns-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .375rem;
+    border-radius: var(--dns-control-radius);
+    padding: .5rem .875rem;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .02em;
+    transition:
+      background-color var(--dns-motion-standard) var(--dns-motion-easing),
+      border-color var(--dns-motion-standard) var(--dns-motion-easing),
+      color var(--dns-motion-standard) var(--dns-motion-easing),
+      box-shadow var(--dns-motion-standard) var(--dns-motion-easing);
+  }
+
+  .dns-btn-primary {
+    border: 1px solid transparent;
+    background: var(--dns-control-primary-bg, var(--color-dns-deep));
+    color: #fff;
+  }
+
+  .dns-btn-primary:hover {
+    background: var(--dns-control-primary-hover, var(--color-dns-mid));
+  }
+
+  .dns-btn-secondary {
+    border: 1px solid var(--dns-control-border, var(--color-dns-border));
+    background: var(--color-dns-surface);
+    color: var(--color-dns-deep);
+  }
+
+  .dns-btn-secondary:hover {
+    background: rgba(13,77,94,.04);
+  }
+
+  .dns-input {
+    border: 1px solid var(--dns-control-border, var(--color-dns-border));
+    border-radius: var(--dns-control-radius);
+    background: var(--color-dns-surface);
+    padding: .5rem .75rem;
+    color: var(--color-dns-deep);
+    font-family: var(--font-alt);
+    font-size: 12px;
+  }
+
+  .dns-tab {
+    padding: .65rem 1.2rem .62rem;
+  }
 }
 
-input[type="text"],input[type="email"],input[type="date"],input[type="url"],textarea,select{
-  font-family:var(--font-alt);
-  background:#fff!important;
-  color:#0D4D5E!important;
-  border-color:rgba(65,116,131,.22)!important;
-}
-input::placeholder,textarea::placeholder{color:#78919a!important}
-input:focus,textarea:focus,select:focus{
-  background:#fff!important;
-  border-color:#417483!important;
+input[type="text"],
+input[type="email"],
+input[type="date"],
+input[type="url"],
+textarea,
+select {
+  border-color: var(--color-dns-border) !important;
+  background: var(--color-dns-surface) !important;
+  color: var(--color-dns-deep) !important;
+  font-family: var(--font-alt);
 }
 
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-track{background:#f4f8f9}
-::-webkit-scrollbar-thumb{background:#AAD0D1;border-radius:3px}
-::-webkit-scrollbar-thumb:hover{background:#417483}
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-dns-muted) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--dns-control-focus, var(--color-dns-mid)) !important;
+  background: var(--color-dns-surface) !important;
+}
+
+@media (min-width: 1024px) {
+  .dns-tab {
+    padding-left: .95rem;
+    padding-right: .95rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .dns-tab {
+    padding-left: .95rem;
+    padding-right: .95rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .dns-tab {
+    padding: .55rem .8rem .52rem;
+    font-size: 10px;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-dns-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--color-dns-light);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-dns-mid);
+}
