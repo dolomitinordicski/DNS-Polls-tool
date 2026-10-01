@@ -147,7 +147,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-dns-bg text-dns-primary flex flex-col font-body selection:bg-dns-soft selection:text-dns-primary" data-dns-foundation="1.12.1">
+    <div
+      className="min-h-screen bg-dns-bg text-dns-primary flex flex-col font-body selection:bg-dns-soft selection:text-dns-primary"
+      data-dns-foundation={designSystem.version}
+    >
       <Header
         currentView={currentView}
         onNavigate={handleNavigate}
@@ -158,13 +161,16 @@ export default function App() {
         onLanguageChange={setCurrentLang}
         designSystem={designSystem}
         isInviteeMode={isInviteeLink && currentView === 'view'}
-        isAdminLocked={false}
       />
 
       <main className="flex-1 pb-14">
         {!isInviteeLink && syncStatus === 'restricted' && (
           <div className="dns-shell pt-4" data-dns-reveal>
-            <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 font-alt text-[10px] text-amber-900">
+            <div
+              className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 font-alt text-[10px] text-amber-900"
+              role="status"
+              aria-live="polite"
+            >
               {currentLang === 'de'
                 ? 'DNS Polls läuft im offenen Betriebsmodus. Die aktuell veröffentlichten Firestore-Regeln blockieren jedoch noch den vollständigen Live-Zugriff; bis zur Rules-Synchronisierung wird der lokale Cache angezeigt.'
                 : 'DNS Polls è in modalità operativa aperta. Le Firestore Rules pubblicate bloccano ancora l’accesso live completo; fino alla loro sincronizzazione viene mostrata la cache locale.'}
@@ -256,8 +262,15 @@ export default function App() {
         />
       )}
 
-      <footer className="mt-6 bg-dns-primary px-4 py-4 font-alt md:px-[1.8rem]">
-        <div className="mx-auto flex max-w-[1440px] flex-col items-start justify-between gap-1 text-[10px] uppercase tracking-[.04em] text-white/65 md:flex-row md:items-center">
+      <footer
+        className="mt-6 px-4 py-4 font-alt md:px-[1.8rem]"
+        style={{
+          background: 'var(--dns-footer-bg)',
+          color: 'var(--dns-footer-text)',
+          fontSize: 'var(--dns-footer-size)',
+        }}
+      >
+        <div className="mx-auto flex max-w-[1440px] flex-col items-start justify-between gap-1 uppercase tracking-[.04em] md:flex-row md:items-center">
           <span>Dolomiti NordicSki</span>
           <span>DNS Polls · © {new Date().getFullYear()}</span>
         </div>
