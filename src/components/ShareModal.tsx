@@ -3,7 +3,8 @@ import { Poll } from '../types';
 import { getPollShareUrl } from '../utils/firebaseStorage';
 import { generateTinyUrl } from '../utils/storage';
 import { Language, t } from '../utils/i18n';
-import { Copy, Check, Share2, MessageCircle, Mail, QrCode, X, Link, Loader2 } from 'lucide-react';
+import { formatPollRecipients, getPollRecipients, parseRecipientEmails, savePollRecipients } from '../utils/pollRecipientStore';
+import { Copy, Check, Share2, MessageCircle, Mail, QrCode, X, Link, Loader2, Save, Users } from 'lucide-react';
 
 interface ShareModalProps {
   poll: Poll;
@@ -18,6 +19,10 @@ export const ShareModal: React.FC<ShareModalProps> = ({ poll, isOpen, onClose, c
   const [showQr, setShowQr] = useState(false);
   const [shortUrl, setShortUrl] = useState<string | null>(null);
   const [loadingShort, setLoadingShort] = useState(false);
+  const [recipientInput, setRecipientInput] = useState(() =>
+    formatPollRecipients(getPollRecipients(poll.id))
+  );
+  const [recipientsSaved, setRecipientsSaved] = useState(false);
 
   if (!isOpen) return null;
 
@@ -188,6 +193,53 @@ export const ShareModal: React.FC<ShareModalProps> = ({ poll, isOpen, onClose, c
                 {t('linkCopiedNote', currentLang)}
               </p>
             )}
+          </div>
+
+          <div className="space-y-2 rounded-sm border border-slate-200 bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
+                <Users className="h-4 w-4 text-slate-600" />
+                {currentLang === 'de' ? 'Empfänger dieser Umfrage' : 'Destinatari del sondaggio'}
+              </label>
+              <span className="text-[10px] font-medium text-slate-500">
+                {parseRecipientEmails(recipientInput).length}
+              </span>
+            </div>
+
+            <textarea
+              rows={4}
+              value={recipientInput}
+              onChange={(event) => {
+                setRecipientInput(event.target.value);
+                setRecipientsSaved(false);
+              }}
+              placeholder="name@example.com"
+              className="w-full resize-y rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-900 focus:border-dns-primary focus:outline-none"
+            />
+
+            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+              <p className="text-[10px] leading-relaxed text-slate-500">
+                {currentLang === 'de'
+                  ? 'Nur in diesem Browser gespeichert. Die Adressen werden nicht in Firestore veröffentlicht und später in die Outlook-ICS übernommen.'
+                  : 'Salvati solo in questo browser. Gli indirizzi non vengono pubblicati su Firestore e saranno poi inseriti nell’ICS Outlook.'}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const saved = savePollRecipients(poll.id, recipientInput);
+                  setRecipientInput(formatPollRecipients(saved));
+                  setRecipientsSaved(true);
+                  window.setTimeout(() => setRecipientsSaved(false), 1800);
+                }}
+                className="flex shrink-0 items-center gap-1.5 rounded-sm border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:border-dns-primary"
+              >
+                {recipientsSaved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+                {recipientsSaved
+                  ? (currentLang === 'de' ? 'Gespeichert' : 'Salvato')
+                  : (currentLang === 'de' ? 'Empfänger speichern' : 'Salva destinatari')}
+              </button>
+            </div>
           </div>
 
           {/* Quick Share Options */}
