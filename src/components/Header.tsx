@@ -4,9 +4,10 @@ import {
   initDNSNavigationRuntime,
   type DNSNavigationRuntimeHandle,
 } from '@dolomitinordicski/dns-shared-data/ui/navigation';
-import { Calendar as CalendarIcon, PlusCircle, List, Share2 } from 'lucide-react';
+import { Share2 } from 'lucide-react';
 import { Language, t } from '../utils/i18n';
 import { AccessibilityMount } from './AccessibilityMount';
+import type { DNSCoreHeaderStatus } from '../lib/dnsCoreHeader';
 
 interface HeaderProps {
   currentView: 'create' | 'list' | 'view' | 'calendar';
@@ -16,7 +17,7 @@ interface HeaderProps {
   designSystem: DNSDesignSystem;
   activePollTitle?: string;
   onQuickShareApp?: () => void;
-  isFirestoreConnected?: boolean;
+  coreStatus: DNSCoreHeaderStatus;
   isInviteeMode?: boolean;
 }
 
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   designSystem,
   activePollTitle,
   onQuickShareApp,
+  coreStatus,
   isInviteeMode = false,
 }) => {
   const headerRef = useRef<HTMLElement>(null);
@@ -72,26 +74,26 @@ export const Header: React.FC<HeaderProps> = ({
     <>
       <header
         ref={headerRef}
-        className="sticky top-0 z-30 bg-dns-primary text-white shadow-[var(--dns-header-shadow)]"
+        id="dns-polls-header"
+        className="sticky top-0 z-30 bg-dns-primary text-white shadow-[0_1px_0_rgba(255,255,255,.08)]"
       >
-        <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-2 px-4 py-3.5 sm:gap-4 md:px-[1.8rem]">
+        <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-5 py-3.5 md:px-8">
           <button
             type="button"
             onClick={() => !isInviteeMode && onNavigate('list')}
             disabled={isInviteeMode}
-            className="flex min-w-0 items-center gap-2 border-0 bg-transparent p-0 text-left text-white disabled:cursor-default sm:gap-4"
+            className="flex min-w-0 items-center gap-4 border-0 bg-transparent p-0 text-left text-white disabled:cursor-default"
             data-dns-press={!isInviteeMode ? '' : undefined}
             aria-label={!isInviteeMode ? t('navMyPolls', currentLang) : undefined}
           >
             <img
-              src="./logo1.png"
+              src="https://dolomitinordicski.github.io/dns-shared-data/brand/logo-web.png"
               alt="Dolomiti NordicSki"
-              className="h-7 w-auto shrink-0 object-contain sm:h-8 md:h-10"
+              className="h-10 w-auto shrink-0 object-contain"
             />
             <div className="min-w-0">
-              <div className="whitespace-nowrap text-[17px] uppercase leading-none tracking-[.035em] text-white sm:text-[20px] md:text-[22px]">
-                <span className="font-bold">DNS</span>
-                <span className="ml-2 font-normal">POLLS</span>
+              <div className="whitespace-nowrap text-[22px] uppercase leading-none tracking-[.035em] text-white">
+                <strong>DNS</strong> <span className="font-normal">POLLS</span>
               </div>
               <div className="mt-1.5 hidden truncate font-alt text-[11px] font-normal uppercase leading-tight tracking-[.06em] text-dns-soft md:block">
                 {subtitle}
@@ -99,35 +101,51 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </button>
 
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <AccessibilityMount language={currentLang} />
+          <div className="flex shrink-0 items-center gap-4">
+            <div className="flex items-center gap-3">
+              <AccessibilityMount language={currentLang} />
+              <div className="flex gap-3 text-[10px] font-bold uppercase tracking-[.06em]">
+                {(['de', 'it'] as Language[]).map(lang => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => onLanguageChange(lang)}
+                    data-dns-press
+                    className={[
+                      'border-0 border-b-2 bg-transparent px-1 py-1 text-white',
+                      currentLang === lang ? 'border-white' : 'border-transparent opacity-60'
+                    ].join(' ')}
+                    aria-pressed={currentLang === lang}
+                  >
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-            <div className="flex gap-2 text-[10px] font-bold uppercase tracking-[.06em]">
-              {(['de', 'it'] as Language[]).map(lang => (
-                <button
-                  key={lang}
-                  type="button"
-                  onClick={() => onLanguageChange(lang)}
-                  data-dns-press
-                  className={[
-                    'border-0 border-b-2 bg-transparent px-1 py-1 text-white',
-                    currentLang === lang ? 'border-white' : 'border-transparent opacity-60'
-                  ].join(' ')}
-                  aria-pressed={currentLang === lang}
-                >
-                  {lang.toUpperCase()}
-                </button>
-              ))}
+            <div
+              className={[
+                'hidden items-center gap-2 text-[10px] font-semibold uppercase tracking-[.05em] xl:flex',
+                coreStatus.state === 'ready' ? 'text-[#d8f0e7]' : '',
+                coreStatus.state === 'error' ? 'text-[#ffd7d0]' : 'text-white/65',
+              ].join(' ')}
+              aria-live="polite"
+            >
+              <span
+                className={[
+                  'h-2 w-2 rounded-full',
+                  coreStatus.state === 'ready' ? 'bg-emerald-400' : '',
+                  coreStatus.state === 'error' ? 'bg-orange-400' : 'bg-dns-soft',
+                ].join(' ')}
+              />
+              {coreStatus.state === 'ready'
+                ? `${currentLang === 'de' ? 'DNS_Core verbunden' : 'DNS_Core connesso'} · ${coreStatus.reportingAreas}/${coreStatus.organizations}`
+                : coreStatus.state === 'error'
+                  ? (currentLang === 'de' ? 'DNS_Core nicht erreichbar' : 'DNS_Core non raggiungibile')
+                  : (currentLang === 'de' ? 'DNS_Core verbindet…' : 'Connessione a DNS_Core…')}
             </div>
           </div>
         </div>
-
-        {activePollTitle && currentView === 'view' && !isInviteeMode && (
-          <div className="border-t border-white/10 bg-white/[.06] px-4 py-1.5 text-center font-alt text-[10px] text-white/75">
-            {t('viewingPoll', currentLang)}{' '}
-            <strong className="text-white">{activePollTitle}</strong>
-          </div>
-        )}
       </header>
 
       <nav
@@ -156,10 +174,7 @@ export const Header: React.FC<HeaderProps> = ({
               data-dns-press
               className="dns-tab"
             >
-              <span className="inline-flex items-center gap-1.5">
-                <List className="h-3.5 w-3.5" />
-                {t('navMyPolls', currentLang)}
-              </span>
+              {t('navMyPolls', currentLang)}
             </button>
             <button
               type="button"
@@ -168,10 +183,7 @@ export const Header: React.FC<HeaderProps> = ({
               data-dns-press
               className="dns-tab"
             >
-              <span className="inline-flex items-center gap-1.5">
-                <CalendarIcon className="h-3.5 w-3.5" />
-                {t('navCalendar', currentLang)}
-              </span>
+              {t('navCalendar', currentLang)}
             </button>
             <button
               type="button"
@@ -180,10 +192,7 @@ export const Header: React.FC<HeaderProps> = ({
               data-dns-press
               className="dns-tab"
             >
-              <span className="inline-flex items-center gap-1.5">
-                <PlusCircle className="h-3.5 w-3.5" />
-                {t('navNewPoll', currentLang)}
-              </span>
+              {t('navNewPoll', currentLang)}
             </button>
 
             <div className="flex-1" />
