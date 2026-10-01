@@ -201,7 +201,6 @@ export default function App() {
       <Header
         currentView={currentView}
         onNavigate={handleNavigate}
-        activePollTitle={activePoll?.title}
         onQuickShareApp={
           currentView === 'view' && activePoll
             ? () => setAppShareModalOpen(true)
