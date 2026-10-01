@@ -132,12 +132,109 @@ function privateContactsRef(pollId: string) {
   );
 }
 
+function canonicalParticipantContactId(participantId: string): string {
+  return `participant-${participantId}`;
+}
+
+async function compactParticipantContacts(pollId: string): Promise<void> {
+  if (!db || !auth || !isAuthorizedPrivateDataUser(auth.currentUser)) {
+    return;
+  }
+
+  const snapshot = await getDocs(privateContactsRef(pollId));
+  const latestByParticipant = new Map<
+    string,
+    {
+      ref: typeof snapshot.docs[number]['ref'];
+      data: {
+        participantId: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        updatedAt: string;
+      };
+    }
+  >();
+
+  snapshot.docs.forEach(item => {
+    const data = item.data() as {
+      participantId?: string;
+      email?: string;
+      firstName?: string;
+      lastName?: string;
+      updatedAt?: string;
+    };
+
+    if (
+      !data.participantId ||
+      !data.email ||
+      data.participantId.startsWith(INVITEE_PREFIX)
+    ) {
+      return;
+    }
+
+    const normalized = {
+      participantId: data.participantId,
+      email: data.email.trim().toLowerCase(),
+      firstName: data.firstName || '',
+      lastName: data.lastName || '',
+      updatedAt: data.updatedAt || '',
+    };
+
+    const previous = latestByParticipant.get(data.participantId);
+    if (
+      !previous ||
+      normalized.updatedAt >= previous.data.updatedAt
+    ) {
+      latestByParticipant.set(data.participantId, {
+        ref: item.ref,
+        data: normalized,
+      });
+    }
+  });
+
+  if (latestByParticipant.size === 0) return;
+
+  const batch = writeBatch(db);
+  let hasWrites = false;
+
+  for (const [participantId, latest] of latestByParticipant) {
+    const canonicalId = canonicalParticipantContactId(participantId);
+    const canonicalRef = doc(
+      db,
+      POLLS_COLLECTION,
+      pollId,
+      PRIVATE_CONTACTS_COLLECTION,
+      canonicalId,
+    );
+
+    batch.set(canonicalRef, latest.data, { merge: true });
+    hasWrites = true;
+
+    snapshot.docs.forEach(item => {
+      const data = item.data() as { participantId?: string };
+      if (
+        data.participantId === participantId &&
+        item.id !== canonicalId
+      ) {
+        batch.delete(item.ref);
+      }
+    });
+  }
+
+  if (hasWrites) {
+    await batch.commit();
+  }
+}
+
 export async function loadPrivatePollRecipients(
   pollId: string,
 ): Promise<string[]> {
   if (!db || !auth || !isAuthorizedPrivateDataUser(auth.currentUser)) {
     return [];
   }
+
+  await compactParticipantContacts(pollId);
 
   const snapshot = await getDocs(privateContactsRef(pollId));
   const emails = new Set<string>();
