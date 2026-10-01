@@ -64,6 +64,12 @@ export function getLegacyPollCandidateCount(): number {
   return captureLegacyPollSnapshot().length;
 }
 
+export function getLegacyPollCandidateIds(): string[] {
+  return captureLegacyPollSnapshot()
+    .map(poll => poll.id)
+    .filter(Boolean);
+}
+
 export function readPollCache(): Poll[] {
   return sortPolls(getLocalPolls().map(publicPollForCache));
 }
