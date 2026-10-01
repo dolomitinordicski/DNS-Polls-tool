@@ -4,15 +4,21 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
 import type { DNSDesignSystem } from '@dolomitinordicski/dns-shared-data/design-system';
 import { Poll } from './types';
 import { decodePollFromHash } from './utils/storage';
 import {
-  FirestoreSyncStatus,
+  type FirestoreAccessError,
+  type FirestoreSyncStatus,
   subscribeToPoll,
   subscribeToPollsFromFirestore,
 } from './utils/firebaseStorage';
-import { isFirebaseConfigured } from './lib/firebase';
+import {
+  auth,
+  googleAuthProvider,
+  isFirebaseConfigured,
+} from './lib/firebase';
 import { DNS_DESIGN_FALLBACK } from './design/fallback';
 import {
   applyDNSDesignFallback,
@@ -22,12 +28,27 @@ import {
 import { initDNSUIRuntime } from './lib/uiRuntime';
 import { Language, t } from './utils/i18n';
 import { Header } from './components/Header';
+import { AdminLogin } from './components/AdminLogin';
 import { MyPollsList } from './components/MyPollsList';
 import { CreatePollForm } from './components/CreatePollForm';
 import { PollView } from './components/PollView';
 import { PollCalendarView } from './components/PollCalendarView';
 import { ShareModal } from './components/ShareModal';
 import { Calendar as CalendarIcon } from 'lucide-react';
+
+const normalizeEmail = (value?: string | null) =>
+  (value || '').trim().toLowerCase();
+
+function getAllowedAdminEmails(): string[] {
+  const configured = (import.meta.env.VITE_ADMIN_EMAILS || '')
+    .split(',')
+    .map((email: string) => normalizeEmail(email))
+    .filter(Boolean);
+
+  return configured.length > 0
+    ? configured
+    : ['management@dolomitinordicski.com'];
+}
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar'>('list');
@@ -38,6 +59,10 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<FirestoreSyncStatus>(isFirebaseConfigured ? 'connecting' : 'offline');
   const [currentLang, setCurrentLang] = useState<Language>('de');
   const [designSystem, setDesignSystem] = useState<DNSDesignSystem>(DNS_DESIGN_FALLBACK);
+  const [adminUser, setAdminUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(!auth);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [firestoreAccessError, setFirestoreAccessError] = useState<FirestoreAccessError | null>(null);
 
   const initialPublicTarget = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
@@ -47,6 +72,13 @@ export default function App() {
   }, []);
 
   const isInviteeLink = Boolean(initialPublicTarget.pollId || initialPublicTarget.hashPoll);
+  const allowedAdminEmails = useMemo(() => getAllowedAdminEmails(), []);
+
+  const isAuthorizedAdmin = (user: User | null) =>
+    Boolean(
+      user?.email &&
+      allowedAdminEmails.includes(normalizeEmail(user.email)),
+    );
 
   useEffect(() => {
     let disposed = false;
@@ -72,6 +104,40 @@ export default function App() {
     };
   }, []);
 
+  // Authentication is progressive: Polls stays open when Firestore rules allow
+  // the dashboard collection read, and asks for the DNS admin account only when
+  // the backend returns permission-denied.
+  useEffect(() => {
+    if (!auth || isInviteeLink) {
+      setAuthReady(true);
+      return;
+    }
+
+    return onAuthStateChanged(auth, async user => {
+      if (!user) {
+        setAdminUser(null);
+        setAuthReady(true);
+        return;
+      }
+
+      if (!isAuthorizedAdmin(user)) {
+        setAuthError(
+          currentLang === 'de'
+            ? 'Dieses Google-Konto ist nicht für DNS Polls Admin freigegeben.'
+            : 'Questo account Google non è autorizzato per DNS Polls Admin.',
+        );
+        setAdminUser(null);
+        await signOut(auth);
+        setAuthReady(true);
+        return;
+      }
+
+      setAuthError(null);
+      setAdminUser(user);
+      setAuthReady(true);
+    });
+  }, [allowedAdminEmails, currentLang, isInviteeLink]);
+
   // Public links load only the requested poll.
   useEffect(() => {
     if (!isInviteeLink) return;
@@ -95,8 +161,9 @@ export default function App() {
     }
   }, [initialPublicTarget, isInviteeLink]);
 
-  // Temporary operational mode: the admin dashboard stays open without authentication.
-  // Public invitee links remain isolated from the full poll collection.
+  // The dashboard first attempts the canonical collection read. If the deployed
+  // rules require admin authentication, the repository reports "restricted"
+  // instead of silently pretending that browser cache is the authoritative list.
   useEffect(() => {
     if (isInviteeLink) return;
 
@@ -110,9 +177,10 @@ export default function App() {
         ));
         setHasInitialPolls(true);
       },
-      status => setSyncStatus(status)
+      status => setSyncStatus(status),
+      error => setFirestoreAccessError(error),
     );
-  }, [isInviteeLink]);
+  }, [adminUser?.uid, isInviteeLink]);
 
   useEffect(() => {
     if (isInviteeLink || !activePoll) return;
@@ -122,8 +190,57 @@ export default function App() {
     }
   }, [polls, activePoll, isInviteeLink]);
 
+  const handleAdminSignIn = async () => {
+    if (!auth) {
+      setAuthError(
+        currentLang === 'de'
+          ? 'Firebase Authentication ist nicht verfügbar.'
+          : 'Firebase Authentication non è disponibile.',
+      );
+      return;
+    }
+
+    setAuthError(null);
+
+    try {
+      const result = await signInWithPopup(auth, googleAuthProvider);
+      if (!isAuthorizedAdmin(result.user)) {
+        setAuthError(
+          currentLang === 'de'
+            ? 'Dieses Google-Konto ist nicht für DNS Polls Admin freigegeben.'
+            : 'Questo account Google non è autorizzato per DNS Polls Admin.',
+        );
+        await signOut(auth);
+      }
+    } catch (error) {
+      const err = error as { code?: string };
+      setAuthError(
+        err?.code === 'auth/popup-closed-by-user'
+          ? (
+              currentLang === 'de'
+                ? 'Anmeldung abgebrochen.'
+                : 'Accesso annullato.'
+            )
+          : (
+              currentLang === 'de'
+                ? 'Google-Anmeldung fehlgeschlagen.'
+                : 'Accesso Google non riuscito.'
+            ),
+      );
+    }
+  };
+
+  const handleAdminSignOut = async () => {
+    if (auth) await signOut(auth);
+    setAdminUser(null);
+    setPolls([]);
+    setActivePoll(null);
+    setCurrentView('list');
+    setSyncStatus(isFirebaseConfigured ? 'connecting' : 'offline');
+  };
+
   const refreshPollsList = () => {
-    // Firestore listeners are authoritative and will refresh the list automatically.
+    // Firestore listeners are authoritative and refresh automatically.
   };
 
   const handleSelectPoll = (poll: Poll) => {
@@ -143,8 +260,26 @@ export default function App() {
   };
 
   const handleNavigate = (view: 'create' | 'list' | 'calendar') => {
+    if (syncStatus === 'restricted' && !adminUser) return;
     setCurrentView(view);
   };
+
+  const adminLocked =
+    !isInviteeLink &&
+    syncStatus === 'restricted' &&
+    !adminUser;
+
+  const accessMessage =
+    authError ||
+    (
+      firestoreAccessError && adminLocked
+        ? (
+            currentLang === 'de'
+              ? 'Firestore schützt die vollständige Umfrageliste. Bitte mit dem freigegebenen DNS-Konto anmelden.'
+              : 'Firestore protegge l’elenco completo dei sondaggi. Accedi con l’account DNS autorizzato.'
+          )
+        : null
+    );
 
   return (
     <div className="min-h-screen bg-dns-bg text-dns-primary flex flex-col font-body selection:bg-dns-soft selection:text-dns-primary" data-dns-foundation="1.12.1">
@@ -158,11 +293,23 @@ export default function App() {
         onLanguageChange={setCurrentLang}
         designSystem={designSystem}
         isInviteeMode={isInviteeLink && currentView === 'view'}
-        isAdminLocked={false}
+        isAdminLocked={adminLocked}
+        adminEmail={adminUser?.email}
+        onSignOut={adminUser ? handleAdminSignOut : undefined}
       />
 
       <main className="flex-1 pb-14">
-        {!isInviteeLink && currentView === 'list' && !hasInitialPolls && (
+        {!isInviteeLink && adminLocked && authReady && (
+          <div data-dns-reveal>
+            <AdminLogin
+              currentLang={currentLang}
+              onSignIn={handleAdminSignIn}
+              error={accessMessage}
+            />
+          </div>
+        )}
+
+        {!isInviteeLink && !adminLocked && currentView === 'list' && !hasInitialPolls && (
           <div data-dns-reveal className="max-w-6xl mx-auto px-4 py-8">
             <div className="min-h-[420px] bg-white border border-slate-300 rounded-sm p-6 shadow-xs">
               <div className="h-5 w-40 bg-slate-200 rounded-sm mb-5" />
@@ -176,7 +323,7 @@ export default function App() {
           </div>
         )}
 
-        {!isInviteeLink && currentView === 'list' && hasInitialPolls && (
+        {!isInviteeLink && !adminLocked && currentView === 'list' && hasInitialPolls && (
           <div data-dns-reveal>
             <MyPollsList
               polls={polls}
@@ -189,7 +336,7 @@ export default function App() {
           </div>
         )}
 
-        {!isInviteeLink && currentView === 'create' && (
+        {!isInviteeLink && !adminLocked && currentView === 'create' && (
           <div data-dns-reveal>
             <CreatePollForm
               onPollCreated={handlePollCreated}
@@ -211,7 +358,7 @@ export default function App() {
           </div>
         )}
 
-        {!isInviteeLink && currentView === 'calendar' && (
+        {!isInviteeLink && !adminLocked && currentView === 'calendar' && (
           <div data-dns-reveal className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-body">
             <div className="flex items-center justify-between border-b border-slate-300 pb-4">
               <div>
@@ -246,7 +393,7 @@ export default function App() {
         )}
       </main>
 
-      {!isInviteeLink && activePoll && (
+      {!isInviteeLink && !adminLocked && activePoll && (
         <ShareModal
           poll={activePoll}
           isOpen={appShareModalOpen}
