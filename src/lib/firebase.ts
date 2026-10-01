@@ -1,5 +1,5 @@
 import { getApps, initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { initializeFirestore } from 'firebase/firestore';
 
 const POLLS_FIREBASE_APP_NAME = 'dns-polls-app';
@@ -39,4 +39,3 @@ export const db = app
   : null;
 
 export const auth = app ? getAuth(app) : null;
-export const googleAuthProvider = new GoogleAuthProvider();
