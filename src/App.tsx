@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import type { DNSDesignSystem } from '@dolomitinordicski/dns-shared-data/design-system';
 import { Poll } from './types';
 import { decodePollFromHash } from './utils/storage';
 import {
@@ -12,6 +13,12 @@ import {
   subscribeToPollsFromFirestore,
 } from './utils/firebaseStorage';
 import { isFirebaseConfigured } from './lib/firebase';
+import { DNS_DESIGN_FALLBACK } from './design/fallback';
+import {
+  applyDNSDesignFallback,
+  dnsRuntimeSignature,
+  loadAndApplyDNSDesignSystem,
+} from './lib/designSystem';
 import { initDNSUIRuntime } from './lib/uiRuntime';
 import { Language, t } from './utils/i18n';
 import { Header } from './components/Header';
@@ -30,6 +37,7 @@ export default function App() {
   const [appShareModalOpen, setAppShareModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<FirestoreSyncStatus>(isFirebaseConfigured ? 'connecting' : 'offline');
   const [currentLang, setCurrentLang] = useState<Language>('de');
+  const [designSystem, setDesignSystem] = useState<DNSDesignSystem>(DNS_DESIGN_FALLBACK);
 
   const initialPublicTarget = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
@@ -40,7 +48,29 @@ export default function App() {
 
   const isInviteeLink = Boolean(initialPublicTarget.pollId || initialPublicTarget.hashPoll);
 
-  useEffect(() => initDNSUIRuntime(), []);
+  useEffect(() => {
+    let disposed = false;
+    let activeDesignSystem = applyDNSDesignFallback();
+    setDesignSystem(activeDesignSystem);
+    let disposeRuntime = initDNSUIRuntime(activeDesignSystem);
+
+    void loadAndApplyDNSDesignSystem().then(({ designSystem: loadedDesignSystem }) => {
+      if (disposed) return;
+
+      if (dnsRuntimeSignature(loadedDesignSystem) !== dnsRuntimeSignature(activeDesignSystem)) {
+        disposeRuntime?.();
+        disposeRuntime = initDNSUIRuntime(loadedDesignSystem);
+      }
+
+      activeDesignSystem = loadedDesignSystem;
+      setDesignSystem(loadedDesignSystem);
+    });
+
+    return () => {
+      disposed = true;
+      disposeRuntime?.();
+    };
+  }, []);
 
   // Public links load only the requested poll.
   useEffect(() => {
@@ -117,7 +147,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-dns-bg text-dns-primary flex flex-col font-body selection:bg-dns-soft selection:text-dns-primary">
+    <div className="min-h-screen bg-dns-bg text-dns-primary flex flex-col font-body selection:bg-dns-soft selection:text-dns-primary" data-dns-foundation="1.12.0">
       <Header
         currentView={currentView}
         onNavigate={handleNavigate}
@@ -126,6 +156,7 @@ export default function App() {
         isFirestoreConnected={syncStatus === 'live'}
         currentLang={currentLang}
         onLanguageChange={setCurrentLang}
+        designSystem={designSystem}
         isInviteeMode={isInviteeLink && currentView === 'view'}
         isAdminLocked={false}
       />
@@ -224,8 +255,8 @@ export default function App() {
         />
       )}
 
-      <footer className="bg-dns-primary px-4 md:px-[1.8rem] py-3 font-alt">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-[10px] md:text-[11px] uppercase tracking-[.04em] text-white/65">
+      <footer className="mt-6 bg-dns-primary px-4 py-4 font-alt md:px-[1.8rem]">
+        <div className="mx-auto flex max-w-[1440px] flex-col items-start justify-between gap-1 text-[10px] uppercase tracking-[.04em] text-white/65 md:flex-row md:items-center">
           <span>Dolomiti NordicSki</span>
           <span>DNS Polls · © {new Date().getFullYear()}</span>
         </div>
