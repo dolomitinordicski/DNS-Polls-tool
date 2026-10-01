@@ -12,6 +12,7 @@ export {
   finalizePollSlot as finalizePollSlotFirestore,
   getPoll as getPollFromFirestore,
   getPrivateContacts as getPrivateContactsForPoll,
+  importLegacyPollsNow,
   savePoll as savePollToFirestore,
   submitParticipantVote,
   subscribeToPoll,
@@ -30,3 +31,5 @@ export {
 export function getPollShareUrl(poll: Poll): string {
   return getStorageShareUrl(poll);
 }
+
+export { getLegacyPollCandidateIds } from '../data/pollCache';
