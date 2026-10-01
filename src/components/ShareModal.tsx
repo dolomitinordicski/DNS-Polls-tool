@@ -1,10 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Check,
+  Copy,
+  Link,
+  Loader2,
+  Mail,
+  MessageCircle,
+  QrCode,
+  Save,
+  Share2,
+  Users,
+  X,
+} from 'lucide-react';
 import { Poll } from '../types';
 import { getPollShareUrl } from '../utils/firebaseStorage';
 import { generateTinyUrl } from '../utils/storage';
 import { Language, t } from '../utils/i18n';
-import { formatPollRecipients, getPollRecipients, parseRecipientEmails, savePollRecipients } from '../utils/pollRecipientStore';
-import { Copy, Check, Share2, MessageCircle, Mail, QrCode, X, Link, Loader2, Save, Users } from 'lucide-react';
+import {
+  formatPollRecipients,
+  getPollRecipients,
+  parseRecipientEmails,
+  savePollRecipients,
+} from '../utils/pollRecipientStore';
+import { useAccessibleDialog } from '../lib/useAccessibleDialog';
 
 interface ShareModalProps {
   poll: Poll;
@@ -13,297 +31,367 @@ interface ShareModalProps {
   currentLang?: Language;
 }
 
-export const ShareModal: React.FC<ShareModalProps> = ({ poll, isOpen, onClose, currentLang = 'de' }) => {
+export const ShareModal: React.FC<ShareModalProps> = ({
+  poll,
+  isOpen,
+  onClose,
+  currentLang = 'de',
+}) => {
+  const dialogRef = useRef<HTMLElement>(null);
   const [copied, setCopied] = useState(false);
   const [copiedShort, setCopiedShort] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [shortUrl, setShortUrl] = useState<string | null>(null);
   const [loadingShort, setLoadingShort] = useState(false);
-  const [recipientInput, setRecipientInput] = useState(() =>
-    formatPollRecipients(getPollRecipients(poll.id))
-  );
+  const [recipientInput, setRecipientInput] = useState('');
   const [recipientsSaved, setRecipientsSaved] = useState(false);
+
+  useAccessibleDialog({
+    isOpen,
+    onClose,
+    dialogRef,
+    initialFocusSelector: '#share-modal-close-btn',
+  });
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setRecipientInput(formatPollRecipients(getPollRecipients(poll.id)));
+    setShortUrl(null);
+    setCopied(false);
+    setCopiedShort(false);
+    setRecipientsSaved(false);
+    setShowQr(false);
+  }, [isOpen, poll.id]);
 
   if (!isOpen) return null;
 
   const shareUrl = getPollShareUrl(poll);
+  const recipients = parseRecipientEmails(recipientInput);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(shareUrl).then(() => {
+  const copy = currentLang === 'de'
+    ? {
+        direct: 'Direkter Link zur Teilnahme',
+        short: 'Kurzlink',
+        recipients: 'Empfänger dieser Umfrage',
+        recipientsHint: 'Nur in diesem Browser gespeichert. Die Adressen werden nicht in Firestore veröffentlicht und später für die Outlook-ICS wiederverwendet.',
+        saveRecipients: 'Empfänger speichern',
+        saved: 'Gespeichert',
+        quickShare: 'Schnell teilen',
+        qr: 'QR-Code',
+        close: 'Dialog schließen',
+        qrAlt: `QR-Code für die Umfrage „${poll.title}“`,
+      }
+    : {
+        direct: 'Link diretto per rispondere',
+        short: 'Link breve',
+        recipients: 'Destinatari del sondaggio',
+        recipientsHint: 'Salvati solo in questo browser. Gli indirizzi non vengono pubblicati su Firestore e saranno riutilizzati per l’ICS Outlook.',
+        saveRecipients: 'Salva destinatari',
+        saved: 'Salvato',
+        quickShare: 'Condivisione rapida',
+        qr: 'Codice QR',
+        close: 'Chiudi finestra',
+        qrAlt: `Codice QR per il sondaggio “${poll.title}”`,
+      };
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    }).catch(err => {
-      console.error('Copy failed:', err);
-    });
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch (error) {
+      console.error('Copy failed:', error);
+    }
   };
 
   const handleGenerateAndCopyShortUrl = async () => {
-    if (shortUrl) {
-      navigator.clipboard.writeText(shortUrl);
+    try {
+      const value = shortUrl || await generateTinyUrl(shareUrl);
+      setShortUrl(value);
+      await navigator.clipboard.writeText(value);
       setCopiedShort(true);
-      setTimeout(() => setCopiedShort(false), 2500);
-      return;
+      window.setTimeout(() => setCopiedShort(false), 2200);
+    } catch (error) {
+      console.error('Short URL copy failed:', error);
+    } finally {
+      setLoadingShort(false);
     }
+  };
 
-    setLoadingShort(true);
-    const generated = await generateTinyUrl(shareUrl);
-    setShortUrl(generated);
-    setLoadingShort(false);
-    navigator.clipboard.writeText(generated);
-    setCopiedShort(true);
-    setTimeout(() => setCopiedShort(false), 2500);
+  const handleShortUrl = async () => {
+    if (!shortUrl) setLoadingShort(true);
+    await handleGenerateAndCopyShortUrl();
+  };
+
+  const handleSaveRecipients = () => {
+    const saved = savePollRecipients(poll.id, recipientInput);
+    setRecipientInput(formatPollRecipients(saved));
+    setRecipientsSaved(true);
+    window.setTimeout(() => setRecipientsSaved(false), 1800);
   };
 
   const whatsappText = encodeURIComponent(
     currentLang === 'de'
-      ? `👋 Hallo! Nimm an der Umfrage zur Terminabstimmung teil: "${poll.title}".\nGib hier deine Verfügbarkeiten an:\n${shareUrl}`
-      : `👋 Ciao! Partecipa al sondaggio per decidere la data della riunione: "${poll.title}".\nCompila le tue preferenze qui:\n${shareUrl}`
+      ? `Hallo! Bitte gib deine Verfügbarkeit für „${poll.title}“ an:\n${shareUrl}`
+      : `Ciao! Indica la tua disponibilità per “${poll.title}”:\n${shareUrl}`,
   );
 
   const emailSubject = encodeURIComponent(
-    currentLang === 'de' ? `Terminabstimmung: ${poll.title}` : `Sondaggio Riunione: ${poll.title}`
+    currentLang === 'de'
+      ? `Terminabstimmung: ${poll.title}`
+      : `Sondaggio riunione: ${poll.title}`,
   );
+
   const emailBody = encodeURIComponent(
     currentLang === 'de'
-      ? `Hallo,\n\nich lade dich ein, deine Verfügbarkeit für "${poll.title}" anzugeben.\n\nUnter folgendem Link kannst du deine Zeiten wählen:\n${shareUrl}\n\nVielen Dank,\n${poll.organizerName}`
-      : `Ciao,\n\nTi invito a indicare le tue disponibilità per la riunione "${poll.title}".\n\nPuoi scegliere le tue preferenze a questo link:\n${shareUrl}\n\nGrazie,\n${poll.organizerName}`
+      ? `Hallo,\n\nbitte gib deine Verfügbarkeit für „${poll.title}“ an.\n\n${shareUrl}\n\nVielen Dank,\n${poll.organizerName}`
+      : `Ciao,\n\nindica le tue disponibilità per “${poll.title}”.\n\n${shareUrl}\n\nGrazie,\n${poll.organizerName}`,
   );
 
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&color=0D4D5E&bgcolor=FFFFFF&data=${encodeURIComponent(shareUrl)}`;
+  const qrCodeUrl =
+    `https://api.qrserver.com/v1/create-qr-code/?size=220x220&color=0D4D5E&bgcolor=FFFFFF&data=${encodeURIComponent(shareUrl)}`;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in font-body">
-      <div 
-        className="bg-white border border-slate-300 rounded-sm w-full max-w-lg overflow-hidden shadow-xl text-slate-900"
-        onClick={(e) => e.stopPropagation()}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-dns-deep/55 p-3 backdrop-blur-sm sm:p-5"
+      role="presentation"
+      onMouseDown={event => {
+        if (event.currentTarget === event.target) onClose();
+      }}
+    >
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="share-modal-title"
+        aria-describedby="share-modal-description"
+        tabIndex={-1}
+        className="dns-card flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden outline-none"
       >
-        {/* Modal Header */}
-        <div className="bg-dns-primary px-5 py-3.5 flex items-center justify-between text-white">
-          <div className="flex items-center gap-2">
-            <Share2 className="w-4 h-4 text-slate-200" />
-            <h3 className="font-heading font-extrabold text-base text-white">{t('shareModalTitle', currentLang)}</h3>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-200 hover:text-white p-1 rounded-sm hover:bg-dns-teal/40 transition-colors"
-            id="share-modal-close-btn"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="p-5 space-y-5">
-          <div>
-            <h4 className="font-heading font-extrabold text-[#083845] text-base mb-0.5">
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-dns-mid/10 bg-dns-primary px-5 py-4 text-white">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 font-alt text-[9px] font-bold uppercase tracking-[.07em] text-dns-soft">
+              <Share2 className="h-3.5 w-3.5" />
+              {t('shareModalTitle', currentLang)}
+            </div>
+            <h2
+              id="share-modal-title"
+              className="mt-1 truncate text-[18px] font-semibold text-white"
+            >
               {poll.title}
-            </h4>
-            <p className="text-xs text-slate-600">
-              {t('shareModalDesc', currentLang)}
-            </p>
+            </h2>
           </div>
 
-          {/* Share Link Input Box */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
-              {t('directLink', currentLang)}
-            </label>
-            <div className="flex items-center gap-2 bg-slate-100 border border-slate-300 rounded-sm p-1">
-              <input
-                type="text"
-                readOnly
-                value={shareUrl}
-                className="bg-transparent text-xs text-slate-900 px-2 py-1 w-full focus:outline-none select-all font-mono"
-              />
-              <button
-                onClick={handleCopy}
-                id="copy-link-btn"
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-sm font-bold text-xs transition-all whitespace-nowrap shadow-xs ${
-                  copied
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-dns-primary text-white hover:bg-dns-deep'
-                }`}
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-white" />
-                    <span>{t('btnCopied', currentLang)}</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>{t('btnCopyLink', currentLang)}</span>
-                  </>
-                )}
-              </button>
-            </div>
-            {copied && (
-              <p className="text-xs text-emerald-700 flex items-center gap-1 font-bold mt-1">
-                <Check className="w-3.5 h-3.5" />
-                {t('linkCopiedNote', currentLang)}
-              </p>
-            )}
-          </div>
+          <button
+            id="share-modal-close-btn"
+            type="button"
+            onClick={onClose}
+            data-dns-press
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-white/15 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+            aria-label={copy.close}
+            title={copy.close}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </header>
 
-          {/* Short URL Section */}
-          <div className="space-y-1.5 bg-sky-50/70 p-2.5 rounded-sm border border-sky-200">
-            <label className="text-xs font-extrabold uppercase tracking-wider text-sky-900 flex items-center gap-1.5">
-              <Link className="w-3.5 h-3.5 text-sky-700" />
-              <span>{t('shortUrlLabel', currentLang)}</span>
-            </label>
-            <div className="flex items-center gap-2 bg-white border border-sky-300 rounded-sm p-1">
-              <input
-                type="text"
-                readOnly
-                placeholder={t('shortUrlLabel', currentLang)}
-                value={shortUrl || shareUrl}
-                className="bg-transparent text-xs text-slate-900 px-2 py-1 w-full focus:outline-none select-all font-mono"
-              />
-              <button
-                onClick={handleGenerateAndCopyShortUrl}
-                disabled={loadingShort}
-                id="generate-short-url-btn"
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-sm font-bold text-xs transition-all whitespace-nowrap shadow-xs ${
-                  copiedShort
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-sky-700 text-white hover:bg-sky-800'
-                }`}
-              >
-                {loadingShort ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>{t('generatingShortUrl', currentLang)}</span>
-                  </>
-                ) : copiedShort ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-white" />
-                    <span>{t('btnCopied', currentLang)}</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>{shortUrl ? t('btnCopyLink', currentLang) : t('btnGenerateTinyUrl', currentLang)}</span>
-                  </>
-                )}
-              </button>
-            </div>
-            {copiedShort && (
-              <p className="text-xs text-emerald-700 flex items-center gap-1 font-bold mt-1">
-                <Check className="w-3.5 h-3.5" />
-                {t('linkCopiedNote', currentLang)}
-              </p>
-            )}
-          </div>
+        <div className="overflow-y-auto p-5 sm:p-6">
+          <p
+            id="share-modal-description"
+            className="font-alt text-[10px] leading-relaxed text-dns-muted"
+          >
+            {t('shareModalDesc', currentLang)}
+          </p>
 
-          <div className="space-y-2 rounded-sm border border-slate-200 bg-slate-50 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
-                <Users className="h-4 w-4 text-slate-600" />
-                {currentLang === 'de' ? 'Empfänger dieser Umfrage' : 'Destinatari del sondaggio'}
+          <div className="mt-5 space-y-5">
+            <section>
+              <label className="dns-kicker" htmlFor="share-url-input">
+                {copy.direct}
               </label>
-              <span className="text-[10px] font-medium text-slate-500">
-                {parseRecipientEmails(recipientInput).length}
-              </span>
-            </div>
+              <div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
+                <input
+                  id="share-url-input"
+                  type="text"
+                  readOnly
+                  value={shareUrl}
+                  className="dns-input h-10 min-w-0 flex-1 font-mono text-[10px]"
+                  onFocus={event => event.currentTarget.select()}
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleCopy()}
+                  data-dns-press
+                  className="dns-btn-primary min-h-10 shrink-0"
+                >
+                  {copied
+                    ? <Check className="h-4 w-4" />
+                    : <Copy className="h-4 w-4" />}
+                  {copied ? t('btnCopied', currentLang) : t('btnCopyLink', currentLang)}
+                </button>
+              </div>
+              <div className="mt-1 min-h-4" aria-live="polite">
+                {copied && (
+                  <span className="font-alt text-[9px] font-semibold text-emerald-800">
+                    {t('linkCopiedNote', currentLang)}
+                  </span>
+                )}
+              </div>
+            </section>
 
-            <textarea
-              rows={4}
-              value={recipientInput}
-              onChange={(event) => {
-                setRecipientInput(event.target.value);
-                setRecipientsSaved(false);
-              }}
-              placeholder="name@example.com"
-              className="w-full resize-y rounded-sm border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-900 focus:border-dns-primary focus:outline-none"
-            />
+            <section className="rounded-lg border border-dns-mid/10 bg-dns-bg p-4">
+              <label className="flex items-center gap-1.5 dns-kicker" htmlFor="short-url-input">
+                <Link className="h-3.5 w-3.5" />
+                {copy.short}
+              </label>
+              <div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
+                <input
+                  id="short-url-input"
+                  type="text"
+                  readOnly
+                  value={shortUrl || shareUrl}
+                  className="dns-input h-10 min-w-0 flex-1 font-mono text-[10px]"
+                  onFocus={event => event.currentTarget.select()}
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleShortUrl()}
+                  disabled={loadingShort}
+                  data-dns-press
+                  className="dns-btn-secondary min-h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loadingShort
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : copiedShort
+                      ? <Check className="h-4 w-4" />
+                      : <Copy className="h-4 w-4" />}
+                  {loadingShort
+                    ? t('generatingShortUrl', currentLang)
+                    : copiedShort
+                      ? t('btnCopied', currentLang)
+                      : shortUrl
+                        ? t('btnCopyLink', currentLang)
+                        : t('btnGenerateTinyUrl', currentLang)}
+                </button>
+              </div>
+            </section>
 
-            <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-              <p className="text-[10px] leading-relaxed text-slate-500">
-                {currentLang === 'de'
-                  ? 'Nur in diesem Browser gespeichert. Die Adressen werden nicht in Firestore veröffentlicht und später in die Outlook-ICS übernommen.'
-                  : 'Salvati solo in questo browser. Gli indirizzi non vengono pubblicati su Firestore e saranno poi inseriti nell’ICS Outlook.'}
-              </p>
+            <section className="rounded-lg border border-dns-mid/10 bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <label
+                  className="flex items-center gap-1.5 dns-kicker"
+                  htmlFor="poll-recipient-list"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  {copy.recipients}
+                </label>
+                <span className="font-alt text-[9px] font-semibold text-dns-muted">
+                  {recipients.length}
+                </span>
+              </div>
 
+              <textarea
+                id="poll-recipient-list"
+                rows={4}
+                value={recipientInput}
+                onChange={event => {
+                  setRecipientInput(event.target.value);
+                  setRecipientsSaved(false);
+                }}
+                placeholder="name@example.com"
+                className="dns-input mt-1.5 w-full resize-y font-mono text-[10px]"
+              />
+
+              <div className="mt-2 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+                <p className="max-w-xl font-alt text-[9px] leading-relaxed text-dns-muted">
+                  {copy.recipientsHint}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleSaveRecipients}
+                  data-dns-press
+                  className="dns-btn-secondary min-h-9 shrink-0"
+                >
+                  {recipientsSaved
+                    ? <Check className="h-3.5 w-3.5" />
+                    : <Save className="h-3.5 w-3.5" />}
+                  {recipientsSaved ? copy.saved : copy.saveRecipients}
+                </button>
+              </div>
+            </section>
+
+            <section>
+              <div className="dns-kicker">{copy.quickShare}</div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <a
+                  href={`https://api.whatsapp.com/send?text=${whatsappText}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  id="whatsapp-share-btn"
+                  className="dns-btn-secondary min-h-10"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  WhatsApp
+                </a>
+                <a
+                  href={`mailto:?subject=${emailSubject}&body=${emailBody}`}
+                  id="email-share-btn"
+                  className="dns-btn-secondary min-h-10"
+                >
+                  <Mail className="h-4 w-4" />
+                  {t('sendEmail', currentLang)}
+                </a>
+              </div>
+            </section>
+
+            <section className="border-t border-dns-mid/10 pt-4">
               <button
                 type="button"
-                onClick={() => {
-                  const saved = savePollRecipients(poll.id, recipientInput);
-                  setRecipientInput(formatPollRecipients(saved));
-                  setRecipientsSaved(true);
-                  window.setTimeout(() => setRecipientsSaved(false), 1800);
-                }}
-                className="flex shrink-0 items-center gap-1.5 rounded-sm border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 hover:border-dns-primary"
+                onClick={() => setShowQr(value => !value)}
+                id="toggle-qr-btn"
+                data-dns-press
+                className="flex min-h-9 w-full items-center justify-between gap-3 rounded-md border border-dns-mid/10 bg-dns-bg px-3 font-alt text-[10px] font-semibold text-dns-deep"
+                aria-expanded={showQr}
+                aria-controls="share-qr-panel"
               >
-                {recipientsSaved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-                {recipientsSaved
-                  ? (currentLang === 'de' ? 'Gespeichert' : 'Salvato')
-                  : (currentLang === 'de' ? 'Empfänger speichern' : 'Salva destinatari')}
+                <span className="inline-flex items-center gap-2">
+                  <QrCode className="h-4 w-4 text-dns-mid" />
+                  {showQr ? t('hideQr', currentLang) : t('showQr', currentLang)}
+                </span>
+                <span aria-hidden="true">{showQr ? '−' : '+'}</span>
               </button>
-            </div>
-          </div>
 
-          {/* Quick Share Options */}
-          <div className="grid grid-cols-2 gap-3 pt-1">
-            <a
-              href={`https://api.whatsapp.com/send?text=${whatsappText}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              id="whatsapp-share-btn"
-              className="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 py-2 px-3 rounded-sm text-xs font-bold transition-all"
-            >
-              <MessageCircle className="w-4 h-4 text-emerald-700" />
-              <span>WhatsApp</span>
-            </a>
-
-            <a
-              href={`mailto:?subject=${emailSubject}&body=${emailBody}`}
-              id="email-share-btn"
-              className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-800 py-2 px-3 rounded-sm text-xs font-bold transition-all"
-            >
-              <Mail className="w-4 h-4 text-slate-600" />
-              <span>{t('sendEmail', currentLang)}</span>
-            </a>
-          </div>
-
-          {/* QR Code Toggle */}
-          <div className="border-t border-slate-200 pt-3">
-            <button
-              onClick={() => setShowQr(!showQr)}
-              id="toggle-qr-btn"
-              className="flex items-center justify-between w-full text-xs font-bold text-slate-700 hover:text-dns-primary py-1 transition-colors"
-            >
-              <span className="flex items-center gap-2">
-                <QrCode className="w-4 h-4 text-slate-600" />
-                {showQr ? t('hideQr', currentLang) : t('showQr', currentLang)}
-              </span>
-              <span className="text-slate-500">{showQr ? '▲' : '▼'}</span>
-            </button>
-
-            {showQr && (
-              <div className="mt-3 flex flex-col items-center justify-center p-4 bg-slate-50 text-slate-800 rounded-sm border border-slate-200 text-center">
-                <img
-                  src={qrCodeUrl}
-                  alt="QR Code Sondaggio"
-                  className="w-40 h-40 rounded-sm border border-slate-300 p-2 bg-white mb-2"
-                />
-                <p className="text-xs font-normal text-slate-600">
-                  {t('scanQrNote', currentLang)}
-                </p>
-              </div>
-            )}
+              {showQr && (
+                <div
+                  id="share-qr-panel"
+                  className="mt-3 flex flex-col items-center rounded-lg border border-dns-mid/10 bg-dns-bg p-4 text-center"
+                >
+                  <div className="dns-kicker">{copy.qr}</div>
+                  <img
+                    src={qrCodeUrl}
+                    alt={copy.qrAlt}
+                    className="mt-3 h-40 w-40 rounded-md border border-dns-mid/15 bg-white p-2"
+                  />
+                  <p className="mt-2 font-alt text-[9px] text-dns-muted">
+                    {t('scanQrNote', currentLang)}
+                  </p>
+                </div>
+              )}
+            </section>
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="bg-slate-100 px-5 py-2.5 border-t border-slate-200 flex justify-end">
+        <footer className="flex shrink-0 justify-end border-t border-dns-mid/10 bg-dns-bg px-5 py-3">
           <button
+            type="button"
             onClick={onClose}
-            className="px-3.5 py-1.5 bg-white hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold rounded-sm transition-colors"
+            data-dns-press
+            className="dns-btn-secondary min-h-9"
           >
             {t('btnClose', currentLang)}
           </button>
-        </div>
-      </div>
+        </footer>
+      </section>
     </div>
   );
 };
