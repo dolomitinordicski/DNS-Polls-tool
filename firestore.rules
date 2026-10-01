@@ -2,12 +2,16 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Administrative collection access remains authenticated. Public invitees
+    // may read only a poll they already know by ID; they cannot enumerate polls.
     function isAdmin() {
       return request.auth != null
         && request.auth.token.email == 'management@dolomitinordicski.com';
     }
 
     match /polls/{pollId} {
+      // Public share links resolve a known poll ID. Full collection listing is
+      // intentionally reserved for the DNS administrative session.
       allow get: if true;
       allow list: if isAdmin();
 

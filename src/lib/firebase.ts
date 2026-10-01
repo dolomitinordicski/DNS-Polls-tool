@@ -2,6 +2,8 @@ import { getApps, initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { initializeFirestore } from 'firebase/firestore';
 
+const POLLS_FIREBASE_APP_NAME = 'dns-polls-app';
+
 const firebaseConfig = {
   apiKey: (import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDyiW7bDb2xbTwhYhu3OU3zuaPhc7WFzAg').trim(),
   authDomain: (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'dns-polls.firebaseapp.com').trim(),
@@ -18,8 +20,13 @@ export const isFirebaseConfigured = Boolean(
   firebaseConfig.appId
 );
 
+// Polls and DNS_Core are intentionally separate Firebase domains. Never select
+// getApps()[0]: Foundation may already have initialized its named DNS_Core app.
 const app = isFirebaseConfigured
-  ? (getApps()[0] ?? initializeApp(firebaseConfig))
+  ? (
+      getApps().find(existing => existing.name === POLLS_FIREBASE_APP_NAME) ??
+      initializeApp(firebaseConfig, POLLS_FIREBASE_APP_NAME)
+    )
   : null;
 
 export const db = app
@@ -30,5 +37,6 @@ export const db = app
       experimentalAutoDetectLongPolling: true,
     })
   : null;
+
 export const auth = app ? getAuth(app) : null;
 export const googleAuthProvider = new GoogleAuthProvider();
