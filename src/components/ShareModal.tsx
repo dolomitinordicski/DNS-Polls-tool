@@ -19,10 +19,12 @@ import { Language, t } from '../utils/i18n';
 import {
   formatPollRecipients,
   getPollRecipients,
+  loadPollRecipientsSynced,
   parseRecipientEmails,
-  savePollRecipients,
+  savePollRecipientsSynced,
 } from '../utils/pollRecipientStore';
 import { useAccessibleDialog } from '../lib/useAccessibleDialog';
+import { PrivateRecipientSyncControl } from './PrivateRecipientSyncControl';
 
 interface ShareModalProps {
   poll: Poll;
@@ -57,6 +59,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     if (!isOpen) return;
 
     setRecipientInput(formatPollRecipients(getPollRecipients(poll.id)));
+    void loadPollRecipientsSynced(poll.id).then(({ emails }) => {
+      setRecipientInput(formatPollRecipients(emails));
+    });
     setShortUrl(null);
     setCopied(false);
     setCopiedShort(false);
@@ -74,7 +79,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         direct: 'Direkter Link zur Teilnahme',
         short: 'Kurzlink',
         recipients: 'Empfänger dieser Umfrage',
-        recipientsHint: 'Nur in diesem Browser gespeichert. Die Adressen werden nicht in Firestore veröffentlicht und später für die Outlook-ICS wiederverwendet.',
+        recipientsHint: 'Lokal immer verfügbar. Mit privatem Cloud-Sync werden die Adressen geschützt in Firestore gespeichert und auf anderen angemeldeten Browsern wieder geladen.',
         saveRecipients: 'Empfänger speichern',
         saved: 'Gespeichert',
         quickShare: 'Schnell teilen',
@@ -86,7 +91,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         direct: 'Link diretto per rispondere',
         short: 'Link breve',
         recipients: 'Destinatari del sondaggio',
-        recipientsHint: 'Salvati solo in questo browser. Gli indirizzi non vengono pubblicati su Firestore e saranno riutilizzati per l’ICS Outlook.',
+        recipientsHint: 'Sempre disponibili in locale. Con il sync cloud privato gli indirizzi vengono salvati in modo protetto su Firestore e ricaricati sugli altri browser autenticati.',
         saveRecipients: 'Salva destinatari',
         saved: 'Salvato',
         quickShare: 'Condivisione rapida',
@@ -124,9 +129,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     await handleGenerateAndCopyShortUrl();
   };
 
-  const handleSaveRecipients = () => {
-    const saved = savePollRecipients(poll.id, recipientInput);
-    setRecipientInput(formatPollRecipients(saved));
+  const handleRefreshRecipientsFromCloud = async () => {
+    const { emails } = await loadPollRecipientsSynced(poll.id);
+    setRecipientInput(formatPollRecipients(emails));
+  };
+
+  const handleSaveRecipients = async () => {
+    const { emails } = await savePollRecipientsSynced(
+      poll.id,
+      recipientInput,
+    );
+    setRecipientInput(formatPollRecipients(emails));
     setRecipientsSaved(true);
     window.setTimeout(() => setRecipientsSaved(false), 1800);
   };
@@ -303,12 +316,19 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               />
 
               <div className="mt-2 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-                <p className="max-w-xl font-alt text-[9px] leading-relaxed text-dns-muted">
-                  {copy.recipientsHint}
-                </p>
+                <div className="max-w-xl space-y-2">
+                  <p className="font-alt text-[9px] leading-relaxed text-dns-muted">
+                    {copy.recipientsHint}
+                  </p>
+                  <PrivateRecipientSyncControl
+                    currentLang={currentLang}
+                    onAuthorized={handleRefreshRecipientsFromCloud}
+                    compact
+                  />
+                </div>
                 <button
                   type="button"
-                  onClick={handleSaveRecipients}
+                  onClick={() => void handleSaveRecipients()}
                   data-dns-press
                   className="dns-btn-secondary min-h-9 shrink-0"
                 >
