@@ -17,6 +17,7 @@ import {
 } from './utils/firebaseStorage';
 import { isFirebaseConfigured } from './lib/firebase';
 import { DNS_DESIGN_FALLBACK } from './design/fallback';
+import { probeDNSCoreHeader, type DNSCoreHeaderStatus } from './lib/dnsCoreHeader';
 import {
   applyDNSDesignFallback,
   dnsRuntimeSignature,
@@ -41,6 +42,7 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<FirestoreSyncStatus>(isFirebaseConfigured ? 'connecting' : 'offline');
   const [currentLang, setCurrentLang] = useState<Language>('de');
   const [designSystem, setDesignSystem] = useState<DNSDesignSystem>(DNS_DESIGN_FALLBACK);
+  const [coreStatus, setCoreStatus] = useState<DNSCoreHeaderStatus>({ state: 'loading' });
   const [legacyCandidateIds, setLegacyCandidateIds] = useState<string[]>(() =>
     getLegacyPollCandidateIds(),
   );
@@ -88,6 +90,10 @@ export default function App() {
       setIsRecoveringLegacy(false);
     }
   };
+  useEffect(() => {
+    void probeDNSCoreHeader().then(setCoreStatus);
+  }, []);
+
   useEffect(() => {
     let disposed = false;
     let activeDesignSystem = applyDNSDesignFallback();
@@ -195,13 +201,12 @@ export default function App() {
       <Header
         currentView={currentView}
         onNavigate={handleNavigate}
-        activePollTitle={activePoll?.title}
         onQuickShareApp={
           currentView === 'view' && activePoll
             ? () => setAppShareModalOpen(true)
             : undefined
         }
-        isFirestoreConnected={syncStatus === 'live'}
+        coreStatus={coreStatus}
         currentLang={currentLang}
         onLanguageChange={setCurrentLang}
         designSystem={designSystem}
