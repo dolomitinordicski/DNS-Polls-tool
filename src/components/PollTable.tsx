@@ -9,7 +9,6 @@ import {
   Pencil,
   Send,
   Trophy,
-  UserPlus,
   Users,
   X,
 } from 'lucide-react';
