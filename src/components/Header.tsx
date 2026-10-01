@@ -1,12 +1,19 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import type { DNSDesignSystem } from '@dolomitinordicski/dns-shared-data/design-system';
+import {
+  initDNSNavigationRuntime,
+  type DNSNavigationRuntimeHandle,
+} from '@dolomitinordicski/dns-shared-data/ui/navigation';
 import { Calendar as CalendarIcon, PlusCircle, List, LogOut, Share2 } from 'lucide-react';
 import { Language, t } from '../utils/i18n';
+import { AccessibilityMount } from './AccessibilityMount';
 
 interface HeaderProps {
   currentView: 'create' | 'list' | 'view' | 'calendar';
   onNavigate: (view: 'create' | 'list' | 'calendar') => void;
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
+  designSystem: DNSDesignSystem;
   activePollTitle?: string;
   onQuickShareApp?: () => void;
   isFirestoreConnected?: boolean;
@@ -21,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
   currentLang,
   onLanguageChange,
+  designSystem,
   activePollTitle,
   onQuickShareApp,
   isInviteeMode = false,
@@ -28,49 +36,110 @@ export const Header: React.FC<HeaderProps> = ({
   onSignOut,
   isAdminLocked = false
 }) => {
+  const headerRef = useRef<HTMLElement>(null);
+  const navRef = useRef<HTMLElement>(null);
+  const progressTrackRef = useRef<HTMLDivElement>(null);
+  const progressBarRef = useRef<HTMLSpanElement>(null);
+  const navigationRuntimeRef = useRef<DNSNavigationRuntimeHandle | null>(null);
+
+  useEffect(() => {
+    if (!headerRef.current || !navRef.current) return;
+
+    navigationRuntimeRef.current = initDNSNavigationRuntime({
+      header: headerRef.current,
+      nav: navRef.current,
+      progressTrack: progressTrackRef.current,
+      progressBar: progressBarRef.current,
+      sectionTabs: Array.from(
+        navRef.current.querySelectorAll<HTMLElement>('[data-section]')
+      ),
+      navigation: designSystem.navigation,
+      responsive: designSystem.responsive,
+    });
+
+    navigationRuntimeRef.current.setActiveSection(currentView);
+
+    return () => {
+      navigationRuntimeRef.current?.disconnect();
+      navigationRuntimeRef.current = null;
+    };
+  }, [designSystem]);
+
+  useEffect(() => {
+    navigationRuntimeRef.current?.setActiveSection(currentView);
+    navigationRuntimeRef.current?.refresh();
+  }, [currentView, activePollTitle, isInviteeMode, isAdminLocked]);
+
+  const subtitle = isAdminLocked
+    ? (currentLang === 'de' ? 'Geschützter Verwaltungsbereich' : 'Area amministrativa protetta')
+    : isInviteeMode
+      ? t('inviteeHeaderTag', currentLang)
+      : t('tagline', currentLang);
+
   return (
-    <header className="sticky top-0 z-40 text-white font-heading shadow-[0_1px_0_rgba(255,255,255,.08)]">
-      <div className="bg-dns-primary px-4 md:px-[1.8rem] py-3.5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-          <div
+    <>
+      <header
+        ref={headerRef}
+        className="sticky top-0 z-30 bg-dns-primary text-white shadow-[var(--dns-header-shadow)]"
+      >
+        <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-4 px-4 py-3.5 md:px-[1.8rem]">
+          <button
+            type="button"
             onClick={() => !isInviteeMode && onNavigate('list')}
-            className={`flex items-center gap-[18px] min-w-0 ${!isInviteeMode ? 'cursor-pointer' : ''}`}
+            disabled={isInviteeMode}
+            className="flex min-w-0 items-center gap-4 border-0 bg-transparent p-0 text-left text-white disabled:cursor-default"
+            data-dns-press={!isInviteeMode ? '' : undefined}
+            aria-label={!isInviteeMode ? t('navMyPolls', currentLang) : undefined}
           >
-            <img src="./logo1.png" alt="Dolomiti NordicSki" className="h-11 md:h-12 w-auto shrink-0 object-contain" />
+            <img
+              src="./logo1.png"
+              alt="Dolomiti NordicSki"
+              className="h-8 w-auto shrink-0 object-contain md:h-10"
+            />
             <div className="min-w-0">
-              <div className="uppercase text-[21px] md:text-[23px] leading-none tracking-[.035em] text-white whitespace-nowrap">
-                <span className="font-bold">DNS</span><span className="font-normal ml-2">POLLS</span>
+              <div className="whitespace-nowrap text-[20px] uppercase leading-none tracking-[.035em] text-white md:text-[22px]">
+                <span className="font-bold">DNS</span>
+                <span className="ml-2 font-normal">POLLS</span>
               </div>
-              <div className="font-alt text-[12px] md:text-[13px] font-normal uppercase tracking-[.035em] leading-tight text-dns-soft mt-1 truncate">
-                {isAdminLocked
-                  ? (currentLang === 'de' ? 'Geschützter Verwaltungsbereich' : 'Area amministrativa protetta')
-                  : isInviteeMode ? t('inviteeHeaderTag', currentLang) : t('tagline', currentLang)}
+              <div className="mt-1.5 hidden truncate font-alt text-[11px] font-normal uppercase leading-tight tracking-[.06em] text-dns-soft md:block">
+                {subtitle}
               </div>
             </div>
-          </div>
+          </button>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex shrink-0 items-center gap-3">
             {!isInviteeMode && adminEmail && (
-              <div className="hidden md:flex items-center gap-2 mr-2 text-[10px] text-white/75">
+              <div className="hidden items-center gap-2 text-[10px] text-white/75 md:flex">
                 <span className="max-w-[180px] truncate">{adminEmail}</span>
                 {onSignOut && (
                   <button
                     type="button"
                     onClick={onSignOut}
-                    className="p-1.5 rounded-full bg-white/10 hover:bg-white/15 text-white"
+                    data-dns-press
+                    data-dns-hover
+                    className="border-0 bg-transparent p-1 text-white/75 hover:text-white"
                     title={currentLang === 'de' ? 'Abmelden' : 'Esci'}
                   >
-                    <LogOut className="w-3.5 h-3.5" />
+                    <LogOut className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
             )}
-            <div className="flex items-center gap-1">
-              {(['de','it'] as Language[]).map(lang => (
+
+            <AccessibilityMount language={currentLang} />
+
+            <div className="flex gap-2 text-[10px] font-bold uppercase tracking-[.06em]">
+              {(['de', 'it'] as Language[]).map(lang => (
                 <button
                   key={lang}
+                  type="button"
                   onClick={() => onLanguageChange(lang)}
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-[.05em] ${currentLang===lang?'bg-white text-dns-primary':'bg-white/10 text-white/75 hover:bg-white/15'}`}
+                  data-dns-press
+                  className={[
+                    'border-0 border-b-2 bg-transparent px-1 py-1 text-white',
+                    currentLang === lang ? 'border-white' : 'border-transparent opacity-60'
+                  ].join(' ')}
+                  aria-pressed={currentLang === lang}
                 >
                   {lang.toUpperCase()}
                 </button>
@@ -78,34 +147,88 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
         </div>
-      </div>
 
-      {!isInviteeMode && !isAdminLocked && (
-        <div className="bg-dns-teal px-4 md:px-[1.8rem]">
-          <div className="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto">
-            <button onClick={() => onNavigate('list')} className={`px-3 py-2.5 text-[10px] uppercase tracking-[.06em] font-semibold border-b-[3px] whitespace-nowrap ${currentView==='list'?'text-white border-white':'text-white/60 border-transparent hover:text-white'}`}>
-              <span className="inline-flex items-center gap-1.5"><List className="w-3.5 h-3.5"/>{t('navMyPolls', currentLang)}</span>
+        {activePollTitle && currentView === 'view' && !isInviteeMode && (
+          <div className="border-t border-white/10 bg-white/[.06] px-4 py-1.5 text-center font-alt text-[10px] text-white/75">
+            {t('viewingPoll', currentLang)}{' '}
+            <strong className="text-white">{activePollTitle}</strong>
+          </div>
+        )}
+      </header>
+
+      <nav
+        ref={navRef}
+        className="dns-tab-nav"
+        aria-label={currentLang === 'de' ? 'DNS Polls Navigation' : 'Navigazione DNS Polls'}
+      >
+        <div
+          ref={progressTrackRef}
+          className="dns-scroll-progress-track"
+          role="progressbar"
+          aria-label={currentLang === 'de' ? 'Seitenfortschritt' : 'Avanzamento pagina'}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={0}
+        >
+          <span ref={progressBarRef} className="dns-scroll-progress-bar" />
+        </div>
+
+        {!isInviteeMode && !isAdminLocked && (
+          <div className="dns-tab-nav-inner">
+            <button
+              type="button"
+              onClick={() => onNavigate('list')}
+              data-section="list"
+              data-dns-press
+              className="dns-tab"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <List className="h-3.5 w-3.5" />
+                {t('navMyPolls', currentLang)}
+              </span>
             </button>
-            <button onClick={() => onNavigate('calendar')} className={`px-3 py-2.5 text-[10px] uppercase tracking-[.06em] font-semibold border-b-[3px] whitespace-nowrap ${currentView==='calendar'?'text-white border-white':'text-white/60 border-transparent hover:text-white'}`}>
-              <span className="inline-flex items-center gap-1.5"><CalendarIcon className="w-3.5 h-3.5"/>{t('navCalendar', currentLang)}</span>
+            <button
+              type="button"
+              onClick={() => onNavigate('calendar')}
+              data-section="calendar"
+              data-dns-press
+              className="dns-tab"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                {t('navCalendar', currentLang)}
+              </span>
             </button>
-            <button onClick={() => onNavigate('create')} className={`px-3 py-2.5 text-[10px] uppercase tracking-[.06em] font-semibold border-b-[3px] whitespace-nowrap ${currentView==='create'?'text-white border-white':'text-white/60 border-transparent hover:text-white'}`}>
-              <span className="inline-flex items-center gap-1.5"><PlusCircle className="w-3.5 h-3.5"/>{t('navNewPoll', currentLang)}</span>
+            <button
+              type="button"
+              onClick={() => onNavigate('create')}
+              data-section="create"
+              data-dns-press
+              className="dns-tab"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <PlusCircle className="h-3.5 w-3.5" />
+                {t('navNewPoll', currentLang)}
+              </span>
             </button>
-            <div className="flex-1"/>
+
+            <div className="flex-1" />
+
             {onQuickShareApp && (
-              <button onClick={onQuickShareApp} className="p-2 text-white/70 hover:text-white" title={t('shareApp', currentLang)}>
-                <Share2 className="w-4 h-4"/>
+              <button
+                type="button"
+                onClick={onQuickShareApp}
+                data-dns-press
+                data-dns-hover
+                className="p-2 text-white/70 hover:text-white"
+                title={t('shareApp', currentLang)}
+              >
+                <Share2 className="h-4 w-4" />
               </button>
             )}
           </div>
-        </div>
-      )}
-
-      {activePollTitle && currentView === 'view' && !isInviteeMode && (
-        <div className="bg-white/95 border-b border-[rgba(65,116,131,.16)] px-4 py-1.5 text-center text-[10px] text-dns-teal">
-          {t('viewingPoll', currentLang)} <strong className="text-dns-primary">{activePollTitle}</strong>
-        </div>
-      )}
-    </header>
-  );};
+        )}
+      </nav>
+    </>
+  );
+};
