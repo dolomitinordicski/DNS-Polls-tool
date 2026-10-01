@@ -10,6 +10,8 @@ import {
   Search,
   Trash2,
   Users,
+  DatabaseBackup,
+  Loader2,
 } from 'lucide-react';
 import { Poll } from '../types';
 import { formatDate, getTopVotedSlot } from '../utils/dateUtils';
@@ -17,6 +19,7 @@ import {
   deletePollFromFirestore,
   getPollShareUrl,
   type FirestoreSyncStatus,
+  type LegacyPollMigrationResult,
 } from '../utils/firebaseStorage';
 import { Language, t } from '../utils/i18n';
 import { EditPollModal } from './EditPollModal';
@@ -29,6 +32,10 @@ interface MyPollsListProps {
   onOpenCalendarView: () => void;
   currentLang: Language;
   syncStatus: FirestoreSyncStatus;
+  legacyPollCount?: number;
+  isRecoveringLegacy?: boolean;
+  legacyRecoveryResult?: LegacyPollMigrationResult | null;
+  onRecoverLegacyPolls?: () => void;
 }
 
 type DashboardFilter = 'all' | 'open' | 'confirmed' | 'expired';
@@ -56,6 +63,10 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
   onOpenCalendarView,
   currentLang,
   syncStatus,
+  legacyPollCount = 0,
+  isRecoveringLegacy = false,
+  legacyRecoveryResult = null,
+  onRecoverLegacyPolls,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<DashboardFilter>('all');
@@ -91,6 +102,10 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
         clearSearch: 'Suche zurücksetzen',
         resultSingular: 'Umfrage',
         resultPlural: 'Umfragen',
+        recoverLegacy: 'Lokale Umfragen wiederherstellen',
+        recoveringLegacy: 'Wiederherstellung…',
+        recoveryHint: 'Ältere browserlokale Umfragen nach Firestore übertragen.',
+        recoveryDone: 'Wiederherstellung abgeschlossen',
       }
     : {
         kicker: 'Pianificazione',
@@ -118,6 +133,10 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
         clearSearch: 'Azzera ricerca',
         resultSingular: 'sondaggio',
         resultPlural: 'sondaggi',
+        recoverLegacy: 'Recupera poll locali',
+        recoveringLegacy: 'Recupero…',
+        recoveryHint: 'Importa in Firestore i poll storici ancora presenti nel browser.',
+        recoveryDone: 'Recupero completato',
       };
 
   const counts = useMemo(() => {
@@ -463,10 +482,43 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 font-alt text-[10px] text-dns-muted">
-            <span>
-              {filteredPolls.length}{' '}
-              {filteredPolls.length === 1 ? copy.resultSingular : copy.resultPlural}
-            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span>
+                {filteredPolls.length}{' '}
+                {filteredPolls.length === 1 ? copy.resultSingular : copy.resultPlural}
+              </span>
+
+              {legacyPollCount > 0 && onRecoverLegacyPolls && (
+                <button
+                  type="button"
+                  onClick={onRecoverLegacyPolls}
+                  disabled={isRecoveringLegacy}
+                  data-dns-press
+                  className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-dns-mid/15 bg-dns-bg px-2.5 font-alt text-[9px] font-semibold text-dns-mid hover:bg-dns-light/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  title={copy.recoveryHint}
+                >
+                  {isRecoveringLegacy
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    : <DatabaseBackup className="h-3.5 w-3.5" />}
+                  {isRecoveringLegacy
+                    ? copy.recoveringLegacy
+                    : `${copy.recoverLegacy} (${legacyPollCount})`}
+                </button>
+              )}
+
+              {legacyRecoveryResult && (
+                <span
+                  className="inline-flex items-center gap-1.5 text-[9px] text-emerald-800"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {copy.recoveryDone}: {legacyRecoveryResult.createdPolls}
+                  {currentLang === 'de' ? ' neue' : ' nuovi'} · {legacyRecoveryResult.responsesUpserted}
+                  {currentLang === 'de' ? ' Antworten' : ' risposte'}
+                </span>
+              )}
+            </div>
 
             {expiredPolls.length > 0 && (
               <button

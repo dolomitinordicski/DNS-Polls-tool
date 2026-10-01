@@ -45,6 +45,14 @@ export interface FirestoreAccessError {
   stage: string;
 }
 
+export interface LegacyPollMigrationResult {
+  candidates: number;
+  createdPolls: number;
+  existingPolls: number;
+  responsesUpserted: number;
+  privateContactsUpserted: number;
+}
+
 function responseCollectionRef(pollId: string) {
   if (!db) throw new Error('Firestore is not configured.');
   return collection(db, POLLS_COLLECTION, pollId, RESPONSES_COLLECTION);
@@ -170,32 +178,61 @@ async function migrateLegacyPublicDocumentsIfNeeded(
   await batch.commit();
 }
 
+function legacySafeId(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 120);
+}
+
+function fallbackLegacyParticipantId(
+  pollId: string,
+  participant: Participant,
+  index: number,
+): string {
+  const identity = [
+    participant.firstName || '',
+    participant.lastName || '',
+    participant.name || '',
+    participant.email || '',
+    String(index),
+  ].join('-');
+
+  return `legacy-${legacySafeId(pollId)}-${legacySafeId(identity)}`;
+}
+
 async function migrateLegacyCacheIfNeeded(
   remotePollIds: ReadonlySet<string>,
-): Promise<boolean> {
-  if (!db) return false;
+  legacyPolls: Poll[],
+): Promise<LegacyPollMigrationResult> {
+  const result: LegacyPollMigrationResult = {
+    candidates: legacyPolls.length,
+    createdPolls: 0,
+    existingPolls: 0,
+    responsesUpserted: 0,
+    privateContactsUpserted: 0,
+  };
 
-  // Import only local-only polls. Existing Firestore documents always win and
-  // are never overwritten by potentially stale browser cache.
-  const legacyPolls = readLegacyPollCache().filter(
-    poll => !remotePollIds.has(poll.id),
-  );
-
-  if (legacyPolls.length === 0) return false;
-
-  const batch = writeBatch(db);
+  if (!db || legacyPolls.length === 0) return result;
 
   for (const poll of legacyPolls) {
-    batch.set(
-      doc(db, POLLS_COLLECTION, poll.id),
-      toFirestorePollDocument(poll),
-      { merge: true },
-    );
+    const batch = writeBatch(db);
+    let hasWrites = false;
+    const existsRemotely = remotePollIds.has(poll.id);
 
-    for (const participant of poll.participants || []) {
+    if (existsRemotely) {
+      result.existingPolls += 1;
+    } else {
+      batch.set(
+        doc(db, POLLS_COLLECTION, poll.id),
+        toFirestorePollDocument(poll),
+        { merge: true },
+      );
+      hasWrites = true;
+      result.createdPolls += 1;
+    }
+
+    for (const [index, participant] of (poll.participants || []).entries()) {
       const responseId =
         participant.id ||
-        `p-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        fallbackLegacyParticipantId(poll.id, participant, index);
 
       batch.set(
         doc(
@@ -211,10 +248,11 @@ async function migrateLegacyCacheIfNeeded(
         },
         { merge: true },
       );
+      hasWrites = true;
+      result.responsesUpserted += 1;
 
-      if (participant.email) {
-        const contactId =
-          `c-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      if (participant.email && !existsRemotely) {
+        const contactId = `legacy-${legacySafeId(responseId)}`;
 
         batch.set(
           doc(
@@ -232,19 +270,36 @@ async function migrateLegacyCacheIfNeeded(
             updatedAt: participant.updatedAt || new Date().toISOString(),
           },
         );
+        hasWrites = true;
+        result.privateContactsUpserted += 1;
       }
+    }
+
+    if (hasWrites) {
+      await batch.commit();
     }
   }
 
-  await batch.commit();
-  return true;
+  return result;
 }
 
 export async function fetchPolls(): Promise<Poll[]> {
   if (!db || !isFirebaseConfigured) return readPollCache();
 
+  const legacySnapshot = readLegacyPollCache();
+
   try {
-    const snapshot = await getDocs(collection(db, POLLS_COLLECTION));
+    let snapshot = await getDocs(collection(db, POLLS_COLLECTION));
+
+    try {
+      await migrateLegacyCacheIfNeeded(
+        new Set(snapshot.docs.map(item => item.id)),
+        legacySnapshot,
+      );
+      snapshot = await getDocs(collection(db, POLLS_COLLECTION));
+    } catch (error) {
+      reportError('legacy local-cache migration', error);
+    }
 
     try {
       await migrateLegacyPublicDocumentsIfNeeded(
@@ -285,9 +340,16 @@ export function subscribeToPolls(
     return () => {};
   }
 
+  // Capture the legacy browser data before any Firestore snapshot is allowed
+  // to replace the local cache. This closes the P.2 startup race that could
+  // erase the only copy of older polls before migration read them.
+  const legacySnapshot = readLegacyPollCache();
+
   onStatus?.('connecting');
   onAccessError?.(null);
+
   let disposed = false;
+  let unsubscribeRemote: (() => void) | null = null;
 
   const publishSnapshot = async (
     snapshot: Awaited<ReturnType<typeof getDocs>>,
@@ -327,6 +389,29 @@ export function subscribeToPolls(
     onStatus?.(status);
   };
 
+  const attachRemoteListener = () => {
+    if (disposed || unsubscribeRemote) return;
+
+    unsubscribeRemote = onSnapshot(
+      collection(db, POLLS_COLLECTION),
+      snapshot => {
+        void publishSnapshot(snapshot);
+      },
+      error => {
+        if (disposed) return;
+
+        const normalized = reportError('poll collection listener', error);
+        if (isPermissionDenied(error)) {
+          onAccessError?.(normalized);
+          publishFallback('restricted');
+        } else {
+          onAccessError?.(normalized);
+          publishFallback(readPollCache().length > 0 ? 'cached' : 'offline');
+        }
+      },
+    );
+  };
+
   const bootstrap = async () => {
     try {
       let snapshot = await Promise.race([
@@ -342,10 +427,16 @@ export function subscribeToPolls(
       if (disposed) return;
 
       try {
-        const migrated = await migrateLegacyCacheIfNeeded(
+        const migration = await migrateLegacyCacheIfNeeded(
           new Set(snapshot.docs.map(item => item.id)),
+          legacySnapshot,
         );
-        if (migrated) {
+
+        if (
+          migration.createdPolls > 0 ||
+          migration.responsesUpserted > 0 ||
+          migration.privateContactsUpserted > 0
+        ) {
           snapshot = await getDocs(collection(db, POLLS_COLLECTION));
         }
       } catch (error) {
@@ -364,34 +455,37 @@ export function subscribeToPolls(
         onAccessError?.(normalized);
         publishFallback(readPollCache().length > 0 ? 'cached' : 'offline');
       }
+    } finally {
+      attachRemoteListener();
     }
   };
 
   void bootstrap();
 
-  const unsubscribe = onSnapshot(
-    collection(db, POLLS_COLLECTION),
-    snapshot => {
-      void publishSnapshot(snapshot);
-    },
-    error => {
-      if (disposed) return;
-
-      const normalized = reportError('poll collection listener', error);
-      if (isPermissionDenied(error)) {
-        onAccessError?.(normalized);
-        publishFallback('restricted');
-      } else {
-        onAccessError?.(normalized);
-        publishFallback(readPollCache().length > 0 ? 'cached' : 'offline');
-      }
-    },
-  );
-
   return () => {
     disposed = true;
-    unsubscribe();
+    unsubscribeRemote?.();
   };
+}
+
+export async function importLegacyPollsNow(): Promise<LegacyPollMigrationResult> {
+  const legacySnapshot = readLegacyPollCache();
+
+  if (!db || !isFirebaseConfigured) {
+    return {
+      candidates: legacySnapshot.length,
+      createdPolls: 0,
+      existingPolls: 0,
+      responsesUpserted: 0,
+      privateContactsUpserted: 0,
+    };
+  }
+
+  const snapshot = await getDocs(collection(db, POLLS_COLLECTION));
+  return migrateLegacyCacheIfNeeded(
+    new Set(snapshot.docs.map(item => item.id)),
+    legacySnapshot,
+  );
 }
 
 export async function getPoll(pollId: string): Promise<Poll | null> {
