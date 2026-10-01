@@ -535,15 +535,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
                   return (
                     <div
                       key={poll.id}
-                      role="button"
-                      tabIndex={0}
                       onClick={() => onSelectPoll(poll)}
-                      onKeyDown={event => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          onSelectPoll(poll);
-                        }
-                      }}
                       data-dns-hover
                       data-dns-reveal
                       data-dns-reveal-index={index}
