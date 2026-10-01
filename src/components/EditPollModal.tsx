@@ -55,7 +55,9 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
 
   useAccessibleDialog({
     isOpen,
-    onClose,
+    onClose: () => {
+      if (!isSaving) onClose();
+    },
     dialogRef,
     initialFocusSelector: '#edit-poll-title',
   });
