@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
   Cloud,
@@ -29,6 +29,7 @@ export const PrivateRecipientSyncControl: React.FC<
 }) => {
   const [state, setState] =
     useState<PrivateRecipientAuthState>('signed-out');
+  const onAuthorizedRef = useRef(onAuthorized);
   const [isWorking, setIsWorking] = useState(false);
   const [error, setError] = useState('');
 
@@ -51,20 +52,29 @@ export const PrivateRecipientSyncControl: React.FC<
       };
 
   useEffect(() => {
+    onAuthorizedRef.current = onAuthorized;
+  }, [onAuthorized]);
+
+  useEffect(() => {
     let disposed = false;
 
-    return subscribePrivateRecipientAuth((nextState) => {
+    const unsubscribe = subscribePrivateRecipientAuth((nextState) => {
       if (disposed) return;
 
       setState(nextState);
 
-      if (nextState === 'authorized' && onAuthorized) {
-        void Promise.resolve(onAuthorized()).catch(syncError => {
+      if (nextState === 'authorized' && onAuthorizedRef.current) {
+        void Promise.resolve(onAuthorizedRef.current()).catch(syncError => {
           console.error('Private recipient refresh failed:', syncError);
         });
       }
     });
-  }, [onAuthorized]);
+
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+  }, []);
 
   const handleConnect = async () => {
     if (isWorking) return;
