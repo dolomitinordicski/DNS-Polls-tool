@@ -214,6 +214,7 @@ async function migrateLegacyCacheIfNeeded(
 
   for (const poll of legacyPolls) {
     const batch = writeBatch(db);
+    let hasWrites = false;
     const existsRemotely = remotePollIds.has(poll.id);
 
     if (existsRemotely) {
@@ -224,6 +225,7 @@ async function migrateLegacyCacheIfNeeded(
         toFirestorePollDocument(poll),
         { merge: true },
       );
+      hasWrites = true;
       result.createdPolls += 1;
     }
 
@@ -246,6 +248,7 @@ async function migrateLegacyCacheIfNeeded(
         },
         { merge: true },
       );
+      hasWrites = true;
       result.responsesUpserted += 1;
 
       if (participant.email && !existsRemotely) {
@@ -267,11 +270,14 @@ async function migrateLegacyCacheIfNeeded(
             updatedAt: participant.updatedAt || new Date().toISOString(),
           },
         );
+        hasWrites = true;
         result.privateContactsUpserted += 1;
       }
     }
 
-    await batch.commit();
+    if (hasWrites) {
+      await batch.commit();
+    }
   }
 
   return result;
