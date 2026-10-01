@@ -9,6 +9,9 @@ import { Poll } from './types';
 import { decodePollFromHash } from './utils/storage';
 import {
   type FirestoreSyncStatus,
+  type LegacyPollMigrationResult,
+  getLegacyPollCandidateIds,
+  importLegacyPollsNow,
   subscribeToPoll,
   subscribeToPollsFromFirestore,
 } from './utils/firebaseStorage';
@@ -38,6 +41,12 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<FirestoreSyncStatus>(isFirebaseConfigured ? 'connecting' : 'offline');
   const [currentLang, setCurrentLang] = useState<Language>('de');
   const [designSystem, setDesignSystem] = useState<DNSDesignSystem>(DNS_DESIGN_FALLBACK);
+  const [legacyCandidateIds, setLegacyCandidateIds] = useState<string[]>(() =>
+    getLegacyPollCandidateIds(),
+  );
+  const [isRecoveringLegacy, setIsRecoveringLegacy] = useState(false);
+  const [legacyRecoveryResult, setLegacyRecoveryResult] =
+    useState<LegacyPollMigrationResult | null>(null);
 
   const initialPublicTarget = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
@@ -47,6 +56,38 @@ export default function App() {
   }, []);
 
   const isInviteeLink = Boolean(initialPublicTarget.pollId || initialPublicTarget.hashPoll);
+
+  const missingLegacyPollCount = useMemo(
+    () =>
+      legacyCandidateIds.filter(
+        id => !polls.some(poll => poll.id === id),
+      ).length,
+    [legacyCandidateIds, polls],
+  );
+
+  const handleRecoverLegacyPolls = async () => {
+    if (isRecoveringLegacy) return;
+
+    setIsRecoveringLegacy(true);
+    setLegacyRecoveryResult(null);
+
+    try {
+      const result = await importLegacyPollsNow();
+      setLegacyRecoveryResult(result);
+      setLegacyCandidateIds(getLegacyPollCandidateIds());
+    } catch (error) {
+      console.error('Legacy poll recovery failed:', error);
+      setLegacyRecoveryResult({
+        candidates: legacyCandidateIds.length,
+        createdPolls: 0,
+        existingPolls: 0,
+        responsesUpserted: 0,
+        privateContactsUpserted: 0,
+      });
+    } finally {
+      setIsRecoveringLegacy(false);
+    }
+  };
   useEffect(() => {
     let disposed = false;
     let activeDesignSystem = applyDNSDesignFallback();
@@ -207,6 +248,10 @@ export default function App() {
               onOpenCalendarView={() => setCurrentView('calendar')}
               currentLang={currentLang}
               syncStatus={syncStatus}
+              legacyPollCount={missingLegacyPollCount}
+              isRecoveringLegacy={isRecoveringLegacy}
+              legacyRecoveryResult={legacyRecoveryResult}
+              onRecoverLegacyPolls={() => void handleRecoverLegacyPolls()}
             />
           </div>
         )}
