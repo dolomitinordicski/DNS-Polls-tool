@@ -196,10 +196,6 @@ textarea {
     font-family: var(--font-alt);
     font-size: 12px;
   }
-
-  .dns-tab {
-    padding: .65rem 1.2rem .62rem;
-  }
 }
 
 input[type="text"],
@@ -226,26 +222,6 @@ select:focus {
   background: var(--color-dns-surface) !important;
 }
 
-@media (min-width: 1024px) {
-  .dns-tab {
-    padding-left: .95rem;
-    padding-right: .95rem;
-  }
-}
-
-@media (max-width: 1023px) {
-  .dns-tab {
-    padding-left: .95rem;
-    padding-right: .95rem;
-  }
-}
-
-@media (max-width: 767px) {
-  .dns-tab {
-    padding: .55rem .8rem .52rem;
-    font-size: 10px;
-  }
-}
 
 ::-webkit-scrollbar {
   width: 6px;
