@@ -9,7 +9,7 @@ P.1 aligns the DNS Polls application shell with the canonical DNS Foundation wit
 Canonical references:
 
 - DNS Foundation v1.2
-- DNS Design System v1.12.0
+- DNS Design System v1.12.1
 - shared motion runtime
 - shared interaction runtime
 - shared accessibility runtime
@@ -33,7 +33,7 @@ The poll data model, Firestore synchronization and invitee flows were intentiona
 
 ### Canonical design source
 
-`@dolomitinordicski/dns-shared-data` is pinned to Foundation / Design System v1.12.0.
+`@dolomitinordicski/dns-shared-data` is pinned to Foundation / Design System v1.12.1.
 
 Runtime resolution:
 

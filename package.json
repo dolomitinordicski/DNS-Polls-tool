@@ -11,7 +11,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@dolomitinordicski/dns-shared-data": "github:dolomitinordicski/dns-shared-data#bbbac5b5f334cd7909971a1e5507bca0ad0a3d9f",
+    "@dolomitinordicski/dns-shared-data": "github:dolomitinordicski/dns-shared-data#15e74ea4b46863acb487bc046efa4e09bbb3e1b6",
     "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
     "@types/pg": "^8.20.4",
