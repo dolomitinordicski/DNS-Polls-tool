@@ -225,34 +225,17 @@ export default function App() {
 
         {!isInviteeLink && currentView === 'calendar' && (
           <div data-dns-reveal className="dns-shell space-y-5 py-5 font-body">
-            <section className="dns-card p-5 md:p-6">
-              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-                <div>
-                  <div className="dns-kicker">
-                    {currentLang === 'de' ? 'Planung' : 'Pianificazione'}
-                  </div>
-                  <h1 className="mt-1 flex items-center gap-2 text-[27px] font-semibold tracking-[-.02em] text-dns-deep">
-                    <CalendarIcon className="h-5 w-5 text-dns-mid" />
-                    {currentLang === 'de' ? 'Team-Kalender' : 'Calendario team'}
-                  </h1>
-                  <p className="mt-2 max-w-2xl font-alt text-[11px] leading-relaxed text-dns-muted">
-                    {currentLang === 'de'
-                      ? 'Alle Terminoptionen und bestätigten Sitzungen im Monatsüberblick.'
-                      : 'Tutte le opzioni data e gli appuntamenti confermati nella vista mensile.'}
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setCurrentView('list')}
-                  data-dns-press
-                  data-dns-hover
-                  className="dns-btn-secondary min-h-9"
-                >
-                  ← {t('btnAllPolls', currentLang)}
-                </button>
-              </div>
-            </section>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setCurrentView('list')}
+                data-dns-press
+                data-dns-hover
+                className="dns-btn-secondary min-h-9"
+              >
+                ← {t('btnAllPolls', currentLang)}
+              </button>
+            </div>
 
             <PollCalendarView
               polls={polls}
