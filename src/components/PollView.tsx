@@ -1,29 +1,40 @@
 import React, { useEffect, useState } from 'react';
+import {
+  ArrowLeft,
+  Calendar as CalendarIcon,
+  Check,
+  CheckCircle2,
+  Copy,
+  Download,
+  Edit3,
+  ExternalLink,
+  List,
+  MapPin,
+  MessageSquare,
+  Share2,
+  Trash2,
+  User,
+  Users,
+} from 'lucide-react';
 import { ParticipantIdentity, Poll, VoteStatus } from '../types';
-import { formatDate, getSlotVoteSummary, getTopVotedSlot } from '../utils/dateUtils';
+import {
+  formatDate,
+  getSlotVoteSummary,
+  getTopVotedSlot,
+} from '../utils/dateUtils';
 import { generateICalFile } from '../utils/storage';
-import { getPollShareUrl, submitParticipantVote, finalizePollSlotFirestore, deletePollFromFirestore, savePollToFirestore } from '../utils/firebaseStorage';
+import {
+  deletePollFromFirestore,
+  finalizePollSlotFirestore,
+  getPollShareUrl,
+  savePollToFirestore,
+  submitParticipantVote,
+} from '../utils/firebaseStorage';
 import { Language, t } from '../utils/i18n';
 import { PollTable } from './PollTable';
 import { PollCalendarView } from './PollCalendarView';
 import { ShareModal } from './ShareModal';
 import { EditPollModal } from './EditPollModal';
-import { 
-  ArrowLeft, 
-  Share2, 
-  Calendar as CalendarIcon, 
-  MapPin, 
-  User, 
-  CheckCircle2, 
-  Download, 
-  Copy, 
-  Check, 
-  MessageSquare, 
-  Trophy, 
-  List,
-  Trash2,
-  Edit3
-} from 'lucide-react';
 
 interface PollViewProps {
   poll: Poll;
@@ -33,29 +44,122 @@ interface PollViewProps {
   isInviteeMode?: boolean;
 }
 
-export const PollView: React.FC<PollViewProps> = ({ poll, onPollUpdated, onBackToList, currentLang, isInviteeMode = false }) => {
+export const PollView: React.FC<PollViewProps> = ({
+  poll,
+  onPollUpdated,
+  onBackToList,
+  currentLang,
+  isInviteeMode = false,
+}) => {
   const [activeTab, setActiveTab] = useState<'table' | 'calendar'>('table');
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [copiedQuick, setCopiedQuick] = useState(false);
   const [previewInvitee, setPreviewInvitee] = useState(false);
-  const isInvitee = isInviteeMode || previewInvitee;
   const [conferenceUrl, setConferenceUrl] = useState(poll.conferenceUrl || '');
   const [conferenceSaved, setConferenceSaved] = useState(false);
+  const [isSavingConference, setIsSavingConference] = useState(false);
+
+  const isInvitee = isInviteeMode || previewInvitee;
+  const topSlotId = getTopVotedSlot(poll.slots, poll.participants);
+  const selectedSlotId = poll.finalizedSlotId || topSlotId;
+  const selectedSlot = poll.slots.find(slot => slot.id === selectedSlotId);
+  const selectedSummary = selectedSlot
+    ? getSlotVoteSummary(selectedSlot.id, poll.participants)
+    : null;
+
+  const isOnlineMeeting =
+    /online|teams|zoom|meet|videokonferenz|video.?conference/i.test(
+      poll.location || '',
+    ) || Boolean(poll.conferenceUrl);
+
+  const copy = currentLang === 'de'
+    ? {
+        organizerView: 'Organisatoransicht',
+        inviteePreview: 'Einladungsansicht',
+        backToOrganizer: 'Zur Organisatoransicht',
+        open: 'Offen',
+        confirmed: 'Termin bestätigt',
+        responses: 'Antworten',
+        options: 'Terminoptionen',
+        bestAvailability: 'Beste Verfügbarkeit',
+        noAvailability: 'Noch keine',
+        pollDetails: 'Umfragedetails',
+        actions: 'Verwaltung',
+        responseSection: 'Verfügbarkeit',
+        calendarSection: 'Kalender',
+        conference: 'Videokonferenz-Link',
+        conferenceHint: 'Optional. Der Link wird in die ICS-Datei übernommen.',
+        save: 'Speichern',
+        saved: 'Gespeichert',
+        saving: 'Speichert…',
+        invitationKicker: 'Terminanfrage',
+        invitationTitle: 'Bitte geben Sie Ihre Verfügbarkeit an',
+        invitationDesc: 'Wählen Sie für jeden vorgeschlagenen Termin eine Antwort und senden Sie Ihre Angaben anschließend ab.',
+        share: 'Teilen',
+        copyLink: 'Link kopieren',
+        copied: 'Kopiert',
+        edit: 'Bearbeiten',
+        delete: 'Löschen',
+        calendarExport: 'iCal herunterladen',
+        topOption: 'Beste Option',
+        confirmedOption: 'Bestätigter Termin',
+        yesResponses: 'Ja-Antworten',
+        noDescription: 'Keine zusätzlichen Hinweise.',
+      }
+    : {
+        organizerView: 'Vista organizzatore',
+        inviteePreview: 'Anteprima invitato',
+        backToOrganizer: 'Torna alla vista organizzatore',
+        open: 'Aperto',
+        confirmed: 'Data confermata',
+        responses: 'Risposte',
+        options: 'Opzioni data',
+        bestAvailability: 'Migliore disponibilità',
+        noAvailability: 'Ancora nessuna',
+        pollDetails: 'Dettagli sondaggio',
+        actions: 'Gestione',
+        responseSection: 'Disponibilità',
+        calendarSection: 'Calendario',
+        conference: 'Link videoconferenza',
+        conferenceHint: 'Opzionale. Il link verrà inserito nel file ICS.',
+        save: 'Salva',
+        saved: 'Salvato',
+        saving: 'Salvataggio…',
+        invitationKicker: 'Richiesta appuntamento',
+        invitationTitle: 'Indica la tua disponibilità',
+        invitationDesc: 'Scegli una risposta per ogni data proposta e invia poi i tuoi dati.',
+        share: 'Condividi',
+        copyLink: 'Copia link',
+        copied: 'Copiato',
+        edit: 'Modifica',
+        delete: 'Elimina',
+        calendarExport: 'Scarica iCal',
+        topOption: 'Opzione migliore',
+        confirmedOption: 'Data confermata',
+        yesResponses: 'Risposte sì',
+        noDescription: 'Nessuna nota aggiuntiva.',
+      };
 
   useEffect(() => {
     setConferenceUrl(poll.conferenceUrl || '');
   }, [poll.conferenceUrl]);
 
-  const topSlotId = getTopVotedSlot(poll.slots, poll.participants);
-  const topSlot = poll.slots.find(s => s.id === (poll.finalizedSlotId || topSlotId));
+  useEffect(() => {
+    if (isInvitee) setActiveTab('table');
+  }, [isInvitee]);
 
   const handleVoteSubmit = async (
     participant: ParticipantIdentity,
     votes: Record<string, VoteStatus>,
-    editingParticipantId?: string
+    editingParticipantId?: string,
   ) => {
-    const updated = await submitParticipantVote(poll, participant, votes, editingParticipantId);
+    const updated = await submitParticipantVote(
+      poll,
+      participant,
+      votes,
+      editingParticipantId,
+    );
     onPollUpdated(updated);
   };
 
@@ -64,269 +168,394 @@ export const PollView: React.FC<PollViewProps> = ({ poll, onPollUpdated, onBackT
     onPollUpdated(updated);
   };
 
-  const isOnlineMeeting = /online|teams|zoom|meet|videokonferenz|video.?conference/i.test(poll.location || '') || Boolean(poll.conferenceUrl);
-
   const handleSaveConferenceUrl = async () => {
     const raw = conferenceUrl.trim();
-    const normalized = raw && !/^https?:\/\//i.test(raw) ? 'https://' + raw : raw;
-    const updated: Poll = { ...poll, conferenceUrl: normalized || undefined };
-    await savePollToFirestore(updated);
-    setConferenceUrl(normalized);
-    setConferenceSaved(true);
-    onPollUpdated(updated);
-    window.setTimeout(() => setConferenceSaved(false), 2000);
-  };
+    const normalized =
+      raw && !/^https?:\/\//i.test(raw)
+        ? `https://${raw}`
+        : raw;
 
-  const handleQuickCopyLink = () => {
-    const shareUrl = getPollShareUrl(poll);
-    navigator.clipboard.writeText(shareUrl);
-    setCopiedQuick(true);
-    setTimeout(() => setCopiedQuick(false), 2500);
-  };
+    setIsSavingConference(true);
 
-  const handleDeleteThisPoll = async () => {
-    if (window.confirm(t('confirmDelete', currentLang))) {
-      await deletePollFromFirestore(poll.id);
-      onBackToList();
+    try {
+      const updated: Poll = {
+        ...poll,
+        conferenceUrl: normalized || undefined,
+      };
+
+      await savePollToFirestore(updated);
+      setConferenceUrl(normalized);
+      setConferenceSaved(true);
+      onPollUpdated(updated);
+
+      window.setTimeout(() => setConferenceSaved(false), 2000);
+    } finally {
+      setIsSavingConference(false);
     }
   };
 
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-body">
-      {/* Top Header Navigation & Mode Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        {!isInvitee ? (
-          <button
-            onClick={onBackToList}
-            id="back-to-polls-btn"
-            className="flex items-center gap-2 text-slate-700 hover:text-dns-primary font-medium text-xs transition-colors py-1"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>{t('btnAllPolls', currentLang)}</span>
-          </button>
-        ) : (
-          <div className="flex items-center gap-2 text-xs font-semibold text-[#083845] bg-sky-50 px-3 py-1.5 rounded-sm border border-sky-200">
-            <span>📋 {t('inviteeNotice', currentLang)}</span>
+  const handleQuickCopyLink = async () => {
+    await navigator.clipboard.writeText(getPollShareUrl(poll));
+    setCopiedQuick(true);
+    window.setTimeout(() => setCopiedQuick(false), 2200);
+  };
+
+  const handleDeleteThisPoll = async () => {
+    if (!window.confirm(t('confirmDelete', currentLang))) return;
+    await deletePollFromFirestore(poll.id);
+    onBackToList();
+  };
+
+  const organizerActions = (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setPreviewInvitee(true)}
+        data-dns-press
+        data-dns-hover
+        className="dns-btn-secondary min-h-8"
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+        {copy.inviteePreview}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setIsEditOpen(true)}
+        id="open-edit-modal-btn"
+        data-dns-press
+        data-dns-hover
+        className="dns-btn-secondary min-h-8"
+      >
+        <Edit3 className="h-3.5 w-3.5" />
+        {copy.edit}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => void handleQuickCopyLink()}
+        id="quick-copy-link-btn"
+        data-dns-press
+        data-dns-hover
+        className="dns-btn-secondary min-h-8"
+      >
+        {copiedQuick
+          ? <Check className="h-3.5 w-3.5" />
+          : <Copy className="h-3.5 w-3.5" />}
+        {copiedQuick ? copy.copied : copy.copyLink}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setIsShareOpen(true)}
+        id="open-share-modal-btn"
+        data-dns-press
+        className="dns-btn-primary min-h-8"
+      >
+        <Share2 className="h-3.5 w-3.5" />
+        {copy.share}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => void handleDeleteThisPoll()}
+        data-dns-press
+        data-dns-hover
+        className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-red-200 bg-white px-3 font-alt text-[10px] font-semibold text-red-800 hover:bg-red-50"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        {copy.delete}
+      </button>
+    </div>
+  );
+
+  const statusBadge = (
+    <span
+      className={[
+        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-alt text-[9px] font-bold uppercase tracking-[.06em]',
+        poll.finalizedSlotId
+          ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+          : 'border-dns-mid/15 bg-dns-bg text-dns-mid',
+      ].join(' ')}
+    >
+      {poll.finalizedSlotId
+        ? <CheckCircle2 className="h-3 w-3" />
+        : <CalendarIcon className="h-3 w-3" />}
+      {poll.finalizedSlotId ? copy.confirmed : copy.open}
+    </span>
+  );
+
+  const detailCard = (
+    <section className="dns-card p-5 md:p-6" data-dns-reveal>
+      <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
+        <div className="min-w-0 max-w-3xl">
+          <div className="flex flex-wrap items-center gap-2">
+            {statusBadge}
+            <span className="font-alt text-[9px] uppercase tracking-[.06em] text-dns-muted">
+              {isInvitee ? copy.invitationKicker : copy.organizerView}
+            </span>
           </div>
-        )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          {!isInvitee ? (
-            <>
-              <button
-                onClick={() => setPreviewInvitee(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 rounded-sm text-xs font-semibold transition-all"
-                title={t('switchInviteeMode', currentLang)}
-              >
-                <span>👁️ {t('switchInviteeMode', currentLang)}</span>
-              </button>
+          <h1 className="mt-3 text-[27px] font-semibold leading-tight tracking-[-.02em] text-dns-deep md:text-[30px]">
+            {poll.title}
+          </h1>
 
-              <button
-                onClick={() => setIsEditOpen(true)}
-                id="open-edit-modal-btn"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-sm text-xs font-semibold transition-all"
-                title={t('btnEditPoll', currentLang)}
-              >
-                <Edit3 className="w-3.5 h-3.5 text-amber-700" />
-                <span>{t('btnEditPoll', currentLang)}</span>
-              </button>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 font-alt text-[10px] text-dns-muted">
+            <span className="inline-flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5 text-dns-mid" />
+              <strong className="font-semibold text-dns-deep">
+                {poll.organizerName}
+              </strong>
+            </span>
 
-              <button
-                onClick={handleDeleteThisPoll}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-300 text-red-800 rounded-sm text-xs font-semibold transition-all"
-                title={t('btnDelete', currentLang)}
-              >
-                <Trash2 className="w-3.5 h-3.5 text-red-600" />
-                <span>{t('btnDelete', currentLang)}</span>
-              </button>
+            {poll.location && (
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-dns-mid" />
+                <strong className="font-semibold text-dns-deep">
+                  {poll.location}
+                </strong>
+              </span>
+            )}
+          </div>
+        </div>
 
-              <button
-                onClick={handleQuickCopyLink}
-                id="quick-copy-link-btn"
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-dns-primary text-slate-800 rounded-sm text-xs font-semibold transition-all shadow-xs"
-              >
-                {copiedQuick ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedQuick ? t('btnCopied', currentLang) : t('btnCopyLink', currentLang)}</span>
-              </button>
+        {!isInvitee && organizerActions}
+      </div>
 
-              <button
-                onClick={() => setIsShareOpen(true)}
-                id="open-share-modal-btn"
-                className="flex items-center gap-2 px-4 py-1.5 bg-dns-primary text-white hover:bg-dns-deep font-bold text-xs rounded-sm shadow-xs transition-all"
-              >
-                <Share2 className="w-4 h-4 text-white" />
-                <span>{t('btnSharePoll', currentLang)}</span>
-              </button>
-            </>
-          ) : !isInviteeMode ? (
-            <button
-              onClick={() => setPreviewInvitee(false)}
-              className="text-xs text-slate-600 hover:text-dns-primary font-semibold underline transition-colors"
-            >
-              {t('switchOrganizerMode', currentLang)}
-            </button>
-          ) : null}
+      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-lg border border-dns-mid/10 bg-dns-bg p-3">
+          <div className="dns-kicker">{copy.responses}</div>
+          <div className="mt-1 text-[20px] font-semibold leading-none text-dns-deep">
+            {poll.participants.length}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-dns-mid/10 bg-dns-bg p-3">
+          <div className="dns-kicker">{copy.options}</div>
+          <div className="mt-1 text-[20px] font-semibold leading-none text-dns-deep">
+            {poll.slots.length}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-dns-mid/10 bg-dns-bg p-3">
+          <div className="dns-kicker">{copy.bestAvailability}</div>
+          <div className="mt-1 text-[20px] font-semibold leading-none text-dns-deep">
+            {selectedSummary ? selectedSummary.yes : '—'}
+          </div>
+          <div className="mt-1 font-alt text-[9px] text-dns-muted">
+            {selectedSummary ? copy.yesResponses : copy.noAvailability}
+          </div>
         </div>
       </div>
 
-      {/* Poll Details Card */}
-      <div className="bg-white border border-slate-300 rounded-sm p-6 shadow-xs space-y-5">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-slate-200 pb-5">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              {poll.finalizedSlotId ? (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-sm text-xs font-bold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  {t('officialDateConfirmed', currentLang)}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-slate-100 text-slate-800 border border-slate-300 rounded-sm text-xs font-bold">
-                  <CalendarIcon className="w-3.5 h-3.5 text-dns-primary" />
-                  {t('pollOpen', currentLang)}
-                </span>
-              )}
-            </div>
-
-            <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-[#083845] tracking-tight">
-              {poll.title}
-            </h1>
-
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:text-sm text-slate-600 pt-1">
-              <span className="flex items-center gap-1.5 font-medium">
-                <User className="w-4 h-4 text-slate-500" />
-                {t('organizer', currentLang)} <strong className="text-[#083845]">{poll.organizerName}</strong>
-              </span>
-
-              {poll.location && (
-                <span className="flex items-center gap-1.5 font-medium">
-                  <MapPin className="w-4 h-4 text-slate-500" />
-                  {t('location', currentLang)} <strong className="text-[#083845]">{poll.location}</strong>
-                </span>
-              )}
-            </div>
+      <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(250px,.55fr)]">
+        <div className="rounded-lg border border-dns-mid/10 bg-white p-4">
+          <div className="flex items-center gap-1.5 dns-kicker">
+            <MessageSquare className="h-3.5 w-3.5" />
+            {copy.pollDetails}
           </div>
+          <p className="mt-2 whitespace-pre-line font-alt text-[11px] leading-relaxed text-dns-deep">
+            {poll.description || copy.noDescription}
+          </p>
+        </div>
 
-          {/* Calendar export is available after the organizer confirms the final slot. */}
-          {poll.finalizedSlotId && topSlot && (
-            <div className="shrink-0 pt-2 md:pt-0 space-y-2 min-w-[260px]">
-              {!isInvitee && isOnlineMeeting && (
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                    {currentLang === 'de' ? 'Videokonferenz-Link (optional)' : 'Link videoconferenza (opzionale)'}
-                  </label>
-                  <div className="flex gap-2">
+        {selectedSlot && (
+          <div
+            className={[
+              'rounded-lg border p-4',
+              poll.finalizedSlotId
+                ? 'border-emerald-300 bg-emerald-50'
+                : 'border-dns-mid/15 bg-dns-light/15',
+            ].join(' ')}
+          >
+            <div className="dns-kicker">
+              {poll.finalizedSlotId ? copy.confirmedOption : copy.topOption}
+            </div>
+            <div className="mt-2 text-[13px] font-semibold text-dns-deep">
+              {formatDate(selectedSlot.date, currentLang).fullFormatted}
+            </div>
+            <div className="mt-1 font-alt text-[10px] text-dns-muted">
+              {selectedSlot.time || t('allDay', currentLang)}
+            </div>
+            {selectedSummary && (
+              <div className="mt-3 border-t border-dns-mid/10 pt-3 font-alt text-[9px] text-dns-muted">
+                <strong className="text-emerald-800">{selectedSummary.yes}</strong> {copy.yesResponses}
+                {poll.allowMaybe && (
+                  <span className="ml-2">
+                    · <strong className="text-amber-800">{selectedSummary.maybe}</strong> {t('voteMaybe', currentLang)}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  return (
+    <div className="dns-shell space-y-5 py-5 font-body">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        {!isInvitee ? (
+          <button
+            type="button"
+            onClick={onBackToList}
+            id="back-to-polls-btn"
+            data-dns-press
+            className="inline-flex items-center gap-1.5 border-0 bg-transparent p-0 font-alt text-[10px] font-semibold text-dns-mid hover:underline"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t('btnAllPolls', currentLang)}
+          </button>
+        ) : !isInviteeMode ? (
+          <button
+            type="button"
+            onClick={() => setPreviewInvitee(false)}
+            data-dns-press
+            className="inline-flex items-center gap-1.5 border-0 bg-transparent p-0 font-alt text-[10px] font-semibold text-dns-mid hover:underline"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {copy.backToOrganizer}
+          </button>
+        ) : (
+          <span className="dns-kicker">{t('inviteeHeaderTag', currentLang)}</span>
+        )}
+
+        {!isInvitee && (
+          <span className="font-alt text-[9px] uppercase tracking-[.06em] text-dns-muted">
+            {copy.organizerView}
+          </span>
+        )}
+      </div>
+
+      {isInvitee && (
+        <section
+          className="rounded-lg border border-dns-mid/15 bg-dns-light/20 p-4 md:p-5"
+          data-dns-reveal
+        >
+          <div className="dns-kicker">{copy.invitationKicker}</div>
+          <h2 className="mt-1 text-[18px] font-semibold text-dns-deep">
+            {copy.invitationTitle}
+          </h2>
+          <p className="mt-1 max-w-2xl font-alt text-[10px] leading-relaxed text-dns-muted">
+            {copy.invitationDesc}
+          </p>
+        </section>
+      )}
+
+      {detailCard}
+
+      {!isInvitee && poll.finalizedSlotId && selectedSlot && (
+        <section className="dns-card p-5 md:p-6" data-dns-reveal>
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+            <div className="min-w-0 flex-1">
+              <div className="dns-kicker">{copy.conference}</div>
+
+              {isOnlineMeeting && (
+                <>
+                  <div className="mt-2 flex max-w-2xl flex-col gap-2 sm:flex-row">
                     <input
                       type="url"
                       value={conferenceUrl}
-                      onChange={(e) => {
-                        setConferenceUrl(e.target.value);
+                      onChange={event => {
+                        setConferenceUrl(event.target.value);
                         setConferenceSaved(false);
                       }}
                       placeholder="https://..."
-                      className="min-w-0 flex-1 bg-white border border-slate-300 focus:border-dns-primary rounded-sm px-2.5 py-2 text-xs text-slate-900 focus:outline-none"
+                      className="dns-input h-10 min-w-0 flex-1"
                     />
                     <button
                       type="button"
-                      onClick={handleSaveConferenceUrl}
-                      className="px-2.5 py-2 bg-white border border-slate-300 hover:border-dns-primary rounded-sm text-[11px] font-bold text-slate-700"
+                      onClick={() => void handleSaveConferenceUrl()}
+                      disabled={isSavingConference}
+                      data-dns-press
+                      className="dns-btn-secondary min-h-10 disabled:opacity-50"
                     >
-                      {conferenceSaved
-                        ? (currentLang === 'de' ? 'Gespeichert' : 'Salvato')
-                        : (currentLang === 'de' ? 'Speichern' : 'Salva')}
+                      {isSavingConference
+                        ? copy.saving
+                        : conferenceSaved
+                          ? copy.saved
+                          : copy.save}
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-500">
-                    {currentLang === 'de'
-                      ? 'Kann auch später ergänzt werden. Der Link wird in die ICS-Datei übernommen.'
-                      : 'Puoi aggiungerlo anche più tardi. Il link verrà inserito nel file ICS.'}
+
+                  <p className="mt-2 font-alt text-[9px] text-dns-muted">
+                    {copy.conferenceHint}
                   </p>
-                </div>
+                </>
               )}
-
-              <button
-                onClick={() => generateICalFile({ ...poll, conferenceUrl: conferenceUrl.trim() || poll.conferenceUrl }, topSlot.id)}
-                id="export-ical-btn"
-                className="w-full flex items-center justify-center gap-1.5 px-3.5 py-2 bg-slate-100 border border-slate-300 hover:border-dns-primary text-slate-800 rounded-sm text-xs font-bold transition-colors shadow-xs"
-              >
-                <Download className="w-4 h-4 text-dns-primary" />
-                <span>{t('btnDownloadICal', currentLang)}</span>
-              </button>
             </div>
-          )}
-        </div>
 
-        {/* Description Text */}
-        {poll.description && (
-          <div className="bg-slate-50 border border-slate-200 rounded-sm p-3.5 text-xs text-slate-700 leading-relaxed space-y-1">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block flex items-center gap-1">
-              <MessageSquare className="w-3.5 h-3.5" />
-              {t('notesForParticipants', currentLang)}
-            </span>
-            <p className="text-sm text-slate-800">{poll.description}</p>
+            <button
+              type="button"
+              onClick={() =>
+                generateICalFile(
+                  {
+                    ...poll,
+                    conferenceUrl:
+                      conferenceUrl.trim() || poll.conferenceUrl,
+                  },
+                  selectedSlot.id,
+                )
+              }
+              id="export-ical-btn"
+              data-dns-press
+              className="dns-btn-primary min-h-10 shrink-0"
+            >
+              <Download className="h-4 w-4" />
+              {copy.calendarExport}
+            </button>
           </div>
-        )}
+        </section>
+      )}
 
-        {/* Top Recommendation Box */}
-        {topSlot && poll.participants.length > 0 && (
-          <div className="bg-amber-50 border border-amber-300 rounded-sm p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-900 shadow-xs">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-100 text-amber-800 rounded-sm shrink-0">
-                <Trophy className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800 block">
-                  {poll.finalizedSlotId ? t('finalDateSelected', currentLang) : t('topVotedDate', currentLang)}
-                </span>
-                <span className="font-heading font-extrabold text-base text-slate-900">
-                  {formatDate(topSlot.date, currentLang).fullFormatted} ({topSlot.time || t('allDay', currentLang)})
-                </span>
-              </div>
-            </div>
+      {!isInvitee && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-dns-mid/10 pb-3"
+          data-dns-reveal
+        >
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              id="tab-view-table-btn"
+              data-dns-press
+              className={[
+                'inline-flex min-h-9 items-center gap-1.5 rounded-md border px-3 font-alt text-[10px] font-semibold',
+                activeTab === 'table'
+                  ? 'border-dns-mid bg-dns-light text-dns-deep'
+                  : 'border-dns-mid/15 bg-white text-dns-mid hover:bg-dns-bg',
+              ].join(' ')}
+            >
+              <List className="h-4 w-4" />
+              {copy.responseSection}
+            </button>
 
-            <div className="text-xs text-slate-700 bg-white px-3 py-1 rounded-sm border border-amber-300 font-mono font-bold">
-              {getSlotVoteSummary(topSlot.id, poll.participants).yes} {currentLang === 'de' ? 'Verfügbar (Ja)' : 'Disponibilità SÌ'}
-            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab('calendar')}
+              id="tab-view-calendar-btn"
+              data-dns-press
+              className={[
+                'inline-flex min-h-9 items-center gap-1.5 rounded-md border px-3 font-alt text-[10px] font-semibold',
+                activeTab === 'calendar'
+                  ? 'border-dns-mid bg-dns-light text-dns-deep'
+                  : 'border-dns-mid/15 bg-white text-dns-mid hover:bg-dns-bg',
+              ].join(' ')}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              {copy.calendarSection}
+            </button>
           </div>
-        )}
-      </div>
 
-      {/* Main View Mode Selector Tabs */}
-      <div className="flex items-center justify-between border-b border-slate-300 pb-3 pt-1">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setActiveTab('table')}
-            id="tab-view-table-btn"
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-sm text-xs font-bold transition-all ${
-              activeTab === 'table'
-                ? 'bg-dns-primary text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-300'
-            }`}
-          >
-            <List className="w-4 h-4" />
-            <span>{t('tabTable', currentLang)}</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('calendar')}
-            id="tab-view-calendar-btn"
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-sm text-xs font-bold transition-all ${
-              activeTab === 'calendar'
-                ? 'bg-dns-primary text-white shadow-xs'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-300'
-            }`}
-          >
-            <CalendarIcon className="w-4 h-4" />
-            <span>{t('tabCalendar', currentLang)}</span>
-          </button>
+          <span className="inline-flex items-center gap-1.5 font-alt text-[9px] text-dns-muted">
+            <Users className="h-3.5 w-3.5" />
+            {poll.participants.length} {t('participantsHeader', currentLang)}
+          </span>
         </div>
+      )}
 
-        <span className="text-xs text-slate-600 font-medium hidden sm:inline">
-          {poll.participants.length} {t('participantsSynced', currentLang)}
-        </span>
-      </div>
-
-      {/* Tab 1: Table View */}
-      {activeTab === 'table' && (
+      {(isInvitee || activeTab === 'table') && (
         <PollTable
           poll={poll}
           onVoteSubmit={handleVoteSubmit}
@@ -336,8 +565,7 @@ export const PollView: React.FC<PollViewProps> = ({ poll, onPollUpdated, onBackT
         />
       )}
 
-      {/* Tab 2: Calendar View */}
-      {activeTab === 'calendar' && (
+      {!isInvitee && activeTab === 'calendar' && (
         <PollCalendarView
           polls={[poll]}
           selectedPollId={poll.id}
@@ -346,7 +574,6 @@ export const PollView: React.FC<PollViewProps> = ({ poll, onPollUpdated, onBackT
         />
       )}
 
-      {/* Share Modal */}
       <ShareModal
         poll={poll}
         isOpen={isShareOpen}
@@ -354,12 +581,11 @@ export const PollView: React.FC<PollViewProps> = ({ poll, onPollUpdated, onBackT
         currentLang={currentLang}
       />
 
-      {/* Edit Poll Modal */}
       <EditPollModal
         poll={poll}
         isOpen={isEditOpen}
         onClose={() => setIsEditOpen(false)}
-        onSave={(updated) => onPollUpdated(updated)}
+        onSave={updated => onPollUpdated(updated)}
         currentLang={currentLang}
       />
     </div>
