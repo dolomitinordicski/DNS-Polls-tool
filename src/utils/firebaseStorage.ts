@@ -4,6 +4,7 @@ import { getPollShareUrl as getStorageShareUrl } from './storage';
 export type {
   FirestoreAccessError,
   FirestoreSyncStatus,
+  LegacyPollMigrationResult,
 } from '../data/pollRepository';
 
 export {
