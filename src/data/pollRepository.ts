@@ -16,6 +16,7 @@ import {
   VoteStatus,
 } from '../types';
 import { auth, db, isFirebaseConfigured } from '../lib/firebase';
+import { isAuthorizedPrivateDataUser } from './privateRecipientSync';
 import {
   POLLS_COLLECTION,
   PRIVATE_CONTACTS_COLLECTION,
@@ -608,26 +609,22 @@ export async function deletePoll(pollId: string): Promise<void> {
     return;
   }
 
-  const responses = await getDocs(responseCollectionRef(pollId));
+  if (!auth || !isAuthorizedPrivateDataUser(auth.currentUser)) {
+    throw new Error('private-admin-auth-required');
+  }
+
+  const [responses, contacts] = await Promise.all([
+    getDocs(responseCollectionRef(pollId)),
+    getDocs(privateContactsCollectionRef(pollId)),
+  ]);
+
   const batch = writeBatch(db);
 
   responses.docs.forEach(item => batch.delete(item.ref));
-
-  // Private contacts are intentionally readable/deletable only by an authenticated
-  // administrator. If no admin session exists, the public poll can still be removed
-  // while the protected contact records remain inaccessible for later admin cleanup.
-  if (auth?.currentUser) {
-    try {
-      const contacts = await getDocs(privateContactsCollectionRef(pollId));
-      contacts.docs.forEach(item => batch.delete(item.ref));
-    } catch (error) {
-      reportError('private contact cleanup', error);
-    }
-  }
-
+  contacts.docs.forEach(item => batch.delete(item.ref));
   batch.delete(doc(db, POLLS_COLLECTION, pollId));
-  await batch.commit();
 
+  await batch.commit();
   removeCachedPoll(pollId);
 }
 
@@ -693,8 +690,7 @@ export async function submitParticipantVote(
     { merge: Boolean(editingParticipantId) },
   );
 
-  const contactId =
-    `c-${Date.now()}-${Math.random().toString(36).substring(2, 12)}`;
+  const contactId = `participant-${participantId}`;
 
   batch.set(
     doc(
@@ -711,6 +707,7 @@ export async function submitParticipantVote(
       lastName,
       updatedAt: now,
     },
+    { merge: true },
   );
 
   batch.update(
