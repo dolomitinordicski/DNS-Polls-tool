@@ -1,9 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import type { DNSDesignSystem } from '@dolomitinordicski/dns-shared-data/design-system';
-import {
-  initDNSNavigationRuntime,
-  type DNSNavigationRuntimeHandle,
-} from '@dolomitinordicski/dns-shared-data/ui/navigation';
+import React, { useEffect } from 'react';
+import { setDNSToolChromeActiveSection } from '@dolomitinordicski/dns-shared-data/ui/tool-chrome';
 import { Share2 } from 'lucide-react';
 import { Language, t } from '../utils/i18n';
 import { AccessibilityMount } from './AccessibilityMount';
@@ -14,7 +10,6 @@ interface HeaderProps {
   onNavigate: (view: 'create' | 'list' | 'calendar') => void;
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
-  designSystem: DNSDesignSystem;
   onQuickShareApp?: () => void;
   coreStatus: DNSCoreHeaderStatus;
   isInviteeMode?: boolean;
@@ -25,43 +20,12 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate,
   currentLang,
   onLanguageChange,
-  designSystem,
   onQuickShareApp,
   coreStatus,
   isInviteeMode = false,
 }) => {
-  const headerRef = useRef<HTMLElement>(null);
-  const navRef = useRef<HTMLElement>(null);
-  const progressTrackRef = useRef<HTMLDivElement>(null);
-  const progressBarRef = useRef<HTMLSpanElement>(null);
-  const navigationRuntimeRef = useRef<DNSNavigationRuntimeHandle | null>(null);
-
   useEffect(() => {
-    if (!headerRef.current || !navRef.current) return;
-
-    navigationRuntimeRef.current = initDNSNavigationRuntime({
-      header: headerRef.current,
-      nav: navRef.current,
-      progressTrack: progressTrackRef.current,
-      progressBar: progressBarRef.current,
-      sectionTabs: Array.from(
-        navRef.current.querySelectorAll<HTMLElement>('[data-section]')
-      ),
-      navigation: designSystem.navigation,
-      responsive: designSystem.responsive,
-    });
-
-    navigationRuntimeRef.current.setActiveSection(currentView);
-
-    return () => {
-      navigationRuntimeRef.current?.disconnect();
-      navigationRuntimeRef.current = null;
-    };
-  }, [designSystem]);
-
-  useEffect(() => {
-    navigationRuntimeRef.current?.setActiveSection(currentView);
-    navigationRuntimeRef.current?.refresh();
+    setDNSToolChromeActiveSection(currentView);
   }, [currentView, isInviteeMode]);
 
   const subtitle = isInviteeMode
@@ -71,9 +35,9 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <>
       <header
-        ref={headerRef}
+        data-dns-tool-header
         id="dns-polls-header"
-        className="sticky top-0 z-30 bg-dns-primary text-white shadow-[0_1px_0_rgba(255,255,255,.08)]"
+        className="bg-dns-primary text-white shadow-[0_1px_0_rgba(255,255,255,.08)]"
       >
         <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-5 py-3.5 md:px-8">
           <button
@@ -147,22 +111,10 @@ export const Header: React.FC<HeaderProps> = ({
       </header>
 
       <nav
-        ref={navRef}
+        data-dns-tool-nav
         className="dns-tab-nav"
         aria-label={currentLang === 'de' ? 'DNS Polls Navigation' : 'Navigazione DNS Polls'}
       >
-        <div
-          ref={progressTrackRef}
-          className="dns-scroll-progress-track"
-          role="progressbar"
-          aria-label={currentLang === 'de' ? 'Seitenfortschritt' : 'Avanzamento pagina'}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={0}
-        >
-          <span ref={progressBarRef} className="dns-scroll-progress-bar" />
-        </div>
-
         {!isInviteeMode && (
           <div className="dns-tab-nav-inner">
             <button
