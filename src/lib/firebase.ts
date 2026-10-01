@@ -1,5 +1,5 @@
 import { getApps, initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { initializeFirestore } from 'firebase/firestore';
 
 const POLLS_FIREBASE_APP_NAME = 'dns-polls-app';
@@ -39,3 +39,6 @@ export const db = app
   : null;
 
 export const auth = app ? getAuth(app) : null;
+
+export const privateDataAuthProvider = new GoogleAuthProvider();
+privateDataAuthProvider.setCustomParameters({ prompt: 'select_account' });
