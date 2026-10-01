@@ -229,7 +229,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
             ? 'border-emerald-700/20 bg-emerald-50 text-emerald-800'
             : '',
           lifecycle === 'expired'
-            ? 'border-slate-300 bg-slate-100 text-slate-600'
+            ? 'border-dns-mid/15 bg-dns-bg text-dns-muted'
             : '',
         ].join(' ')}
       >
