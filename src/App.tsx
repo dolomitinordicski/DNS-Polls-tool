@@ -12,6 +12,7 @@ import {
   subscribeToPollsFromFirestore,
 } from './utils/firebaseStorage';
 import { isFirebaseConfigured } from './lib/firebase';
+import { initDNSUIRuntime } from './lib/uiRuntime';
 import { Language, t } from './utils/i18n';
 import { Header } from './components/Header';
 import { MyPollsList } from './components/MyPollsList';
@@ -38,6 +39,8 @@ export default function App() {
   }, []);
 
   const isInviteeLink = Boolean(initialPublicTarget.pollId || initialPublicTarget.hashPoll);
+
+  useEffect(() => initDNSUIRuntime(), []);
 
   // Public links load only the requested poll.
   useEffect(() => {
@@ -129,7 +132,7 @@ export default function App() {
 
       <main className="flex-1 pb-14">
         {!isInviteeLink && currentView === 'list' && !hasInitialPolls && (
-          <div className="max-w-6xl mx-auto px-4 py-8">
+          <div data-dns-reveal className="max-w-6xl mx-auto px-4 py-8">
             <div className="min-h-[420px] bg-white border border-slate-300 rounded-sm p-6 shadow-xs">
               <div className="h-5 w-40 bg-slate-200 rounded-sm mb-5" />
               <div className="h-10 w-72 max-w-full bg-slate-100 rounded-sm mb-8" />
@@ -143,36 +146,42 @@ export default function App() {
         )}
 
         {!isInviteeLink && currentView === 'list' && hasInitialPolls && (
-          <MyPollsList
-            polls={polls}
-            onSelectPoll={handleSelectPoll}
-            onCreateNew={() => setCurrentView('create')}
-            onRefreshList={refreshPollsList}
-            onOpenCalendarView={() => setCurrentView('calendar')}
-            currentLang={currentLang}
-          />
+          <div data-dns-reveal>
+            <MyPollsList
+              polls={polls}
+              onSelectPoll={handleSelectPoll}
+              onCreateNew={() => setCurrentView('create')}
+              onRefreshList={refreshPollsList}
+              onOpenCalendarView={() => setCurrentView('calendar')}
+              currentLang={currentLang}
+            />
+          </div>
         )}
 
         {!isInviteeLink && currentView === 'create' && (
-          <CreatePollForm
-            onPollCreated={handlePollCreated}
-            onCancel={() => setCurrentView('list')}
-            currentLang={currentLang}
-          />
+          <div data-dns-reveal>
+            <CreatePollForm
+              onPollCreated={handlePollCreated}
+              onCancel={() => setCurrentView('list')}
+              currentLang={currentLang}
+            />
+          </div>
         )}
 
         {currentView === 'view' && activePoll && (
-          <PollView
-            poll={activePoll}
-            onPollUpdated={handlePollUpdated}
-            onBackToList={() => setCurrentView('list')}
-            currentLang={currentLang}
-            isInviteeMode={isInviteeLink}
-          />
+          <div data-dns-reveal>
+            <PollView
+              poll={activePoll}
+              onPollUpdated={handlePollUpdated}
+              onBackToList={() => setCurrentView('list')}
+              currentLang={currentLang}
+              isInviteeMode={isInviteeLink}
+            />
+          </div>
         )}
 
         {!isInviteeLink && currentView === 'calendar' && (
-          <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-body">
+          <div data-dns-reveal className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-body">
             <div className="flex items-center justify-between border-b border-slate-300 pb-4">
               <div>
                 <h1 className="font-heading font-extrabold text-2xl text-slate-900 flex items-center gap-2">
@@ -188,6 +197,8 @@ export default function App() {
 
               <button
                 onClick={() => setCurrentView('list')}
+                data-dns-press
+                data-dns-hover
                 className="px-4 py-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 rounded-sm text-xs font-bold transition-colors shadow-xs"
               >
                 ← {t('btnAllPolls', currentLang)}
