@@ -662,7 +662,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
                   {copy.emptySlots}
                 </div>
               ) : (
-                Object.entries(slotsByDate).map(([date, dateSlots]) => (
+                (Object.entries(slotsByDate) as Array<[string, TimeSlot[]]>).map(([date, dateSlots]) => (
                   <div
                     key={date}
                     className="rounded-lg border border-dns-mid/10 bg-white p-4"
