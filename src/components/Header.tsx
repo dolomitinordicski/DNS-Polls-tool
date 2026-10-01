@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { setDNSToolChromeActiveSection } from '@dolomitinordicski/dns-shared-data/ui/tool-chrome';
+import { formatDNSCoreHeaderStatus } from '@dolomitinordicski/dns-shared-data/ui/header-status';
 import { Share2 } from 'lucide-react';
 import { Language, t } from '../utils/i18n';
 import { AccessibilityMount } from './AccessibilityMount';
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
     setDNSToolChromeActiveSection(currentView);
   }, [currentView, isInviteeMode]);
 
+  const coreHeader = formatDNSCoreHeaderStatus(coreStatus, currentLang);
   const subtitle = isInviteeMode
     ? t('inviteeHeaderTag', currentLang)
     : t('tagline', currentLang);
@@ -39,34 +41,30 @@ export const Header: React.FC<HeaderProps> = ({
         id="dns-polls-header"
         className="bg-dns-primary text-white shadow-[0_1px_0_rgba(255,255,255,.08)]"
       >
-        <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-5 py-3.5 md:px-8">
+        <div className="dns-tool-header-shell">
           <button
             type="button"
             onClick={() => !isInviteeMode && onNavigate('list')}
             disabled={isInviteeMode}
-            className="flex min-w-0 items-center gap-4 border-0 bg-transparent p-0 text-left text-white disabled:cursor-default"
+            className="dns-tool-header-brand border-0 bg-transparent p-0 text-left text-white disabled:cursor-default"
             data-dns-press={!isInviteeMode ? '' : undefined}
             aria-label={!isInviteeMode ? t('navMyPolls', currentLang) : undefined}
           >
             <img
               src="https://dolomitinordicski.github.io/dns-shared-data/brand/logo-web.png"
               alt="Dolomiti NordicSki"
-              className="h-10 w-auto shrink-0 object-contain"
+              className="dns-tool-header-logo"
             />
-            <div className="min-w-0">
-              <div className="whitespace-nowrap text-[22px] uppercase leading-none tracking-[.035em] text-white">
-                <strong>DNS</strong> <span className="font-normal">POLLS</span>
-              </div>
-              <div className="mt-1.5 hidden truncate font-alt text-[11px] font-normal uppercase leading-tight tracking-[.06em] text-dns-soft md:block">
-                {subtitle}
-              </div>
+            <div className="dns-tool-header-identity">
+              <div className="dns-tool-header-title"><strong>DNS</strong> <span>POLLS</span></div>
+              <div className="dns-tool-header-subtitle">{subtitle}</div>
             </div>
           </button>
 
-          <div className="flex shrink-0 items-center gap-4">
-            <div className="flex items-center gap-3">
+          <div className="dns-tool-header-actions">
+            <div className="dns-tool-header-controls">
               <AccessibilityMount language={currentLang} />
-              <div className="flex gap-3 text-[10px] font-bold uppercase tracking-[.06em]">
+              <div className="dns-tool-header-language">
                 {(['de', 'it'] as Language[]).map(lang => (
                   <button
                     key={lang}
@@ -85,26 +83,9 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            <div
-              className={[
-                'hidden items-center gap-2 text-[10px] font-semibold uppercase tracking-[.05em] xl:flex',
-                coreStatus.state === 'ready' ? 'text-[#d8f0e7]' : '',
-                coreStatus.state === 'error' ? 'text-[#ffd7d0]' : 'text-white/65',
-              ].join(' ')}
-              aria-live="polite"
-            >
-              <span
-                className={[
-                  'h-2 w-2 rounded-full',
-                  coreStatus.state === 'ready' ? 'bg-emerald-400' : '',
-                  coreStatus.state === 'error' ? 'bg-orange-400' : 'bg-dns-soft',
-                ].join(' ')}
-              />
-              {coreStatus.state === 'ready'
-                ? `${currentLang === 'de' ? 'DNS_Core verbunden' : 'DNS_Core connesso'} · ${coreStatus.reportingAreas}/${coreStatus.organizations}`
-                : coreStatus.state === 'error'
-                  ? (currentLang === 'de' ? 'DNS_Core nicht erreichbar' : 'DNS_Core non raggiungibile')
-                  : (currentLang === 'de' ? 'DNS_Core verbindet…' : 'Connessione a DNS_Core…')}
+            <div className="dns-tool-header-status" data-state={coreHeader.state} aria-live="polite">
+              <span className="dns-tool-header-status-dot" />
+              {coreHeader.text}
             </div>
           </div>
         </div>
