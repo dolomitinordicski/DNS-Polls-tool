@@ -32,8 +32,6 @@ import {
   replacePollCache,
 } from './pollCache';
 
-const LEGACY_CACHE_MIGRATION_KEY = 'dns_polls_firestore_migration_v1';
-
 export type FirestoreSyncStatus =
   | 'connecting'
   | 'live'
@@ -104,7 +102,7 @@ async function hydratePollDocument(
 async function migrateLegacyPublicDocumentsIfNeeded(
   pollDocs: Array<{ id: string; data: () => Record<string, unknown> }>,
 ): Promise<void> {
-  if (!db || !auth?.currentUser) return;
+  if (!db) return;
 
   const legacyDocs = pollDocs.filter(pollDoc => {
     const data = pollDoc.data();
@@ -172,15 +170,18 @@ async function migrateLegacyPublicDocumentsIfNeeded(
   await batch.commit();
 }
 
-async function migrateLegacyCacheIfNeeded(remotePollCount: number): Promise<boolean> {
-  if (!db || remotePollCount > 0 || !auth?.currentUser) return false;
-  if (localStorage.getItem(LEGACY_CACHE_MIGRATION_KEY) === 'done') return false;
+async function migrateLegacyCacheIfNeeded(
+  remotePollIds: ReadonlySet<string>,
+): Promise<boolean> {
+  if (!db) return false;
 
-  const legacyPolls = readLegacyPollCache();
-  if (legacyPolls.length === 0) {
-    localStorage.setItem(LEGACY_CACHE_MIGRATION_KEY, 'done');
-    return false;
-  }
+  // Import only local-only polls. Existing Firestore documents always win and
+  // are never overwritten by potentially stale browser cache.
+  const legacyPolls = readLegacyPollCache().filter(
+    poll => !remotePollIds.has(poll.id),
+  );
+
+  if (legacyPolls.length === 0) return false;
 
   const batch = writeBatch(db);
 
@@ -236,7 +237,6 @@ async function migrateLegacyCacheIfNeeded(remotePollCount: number): Promise<bool
   }
 
   await batch.commit();
-  localStorage.setItem(LEGACY_CACHE_MIGRATION_KEY, 'done');
   return true;
 }
 
@@ -341,15 +341,15 @@ export function subscribeToPolls(
 
       if (disposed) return;
 
-      if (snapshot.empty) {
-        try {
-          const migrated = await migrateLegacyCacheIfNeeded(snapshot.size);
-          if (migrated) {
-            snapshot = await getDocs(collection(db, POLLS_COLLECTION));
-          }
-        } catch (error) {
-          reportError('legacy local-cache migration', error);
+      try {
+        const migrated = await migrateLegacyCacheIfNeeded(
+          new Set(snapshot.docs.map(item => item.id)),
+        );
+        if (migrated) {
+          snapshot = await getDocs(collection(db, POLLS_COLLECTION));
         }
+      } catch (error) {
+        reportError('legacy local-cache migration', error);
       }
 
       await publishSnapshot(snapshot);
