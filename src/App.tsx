@@ -224,29 +224,35 @@ export default function App() {
         )}
 
         {!isInviteeLink && currentView === 'calendar' && (
-          <div data-dns-reveal className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-body">
-            <div className="flex items-center justify-between border-b border-slate-300 pb-4">
-              <div>
-                <h1 className="font-heading font-extrabold text-2xl text-slate-900 flex items-center gap-2">
-                  <CalendarIcon className="w-6 h-6 text-dns-primary" />
-                  {currentLang === 'de' ? 'Team-Kalenderansicht' : 'Visualizzazione Calendario Team'}
-                </h1>
-                <p className="text-xs text-slate-600 mt-1">
-                  {currentLang === 'de'
-                    ? 'Erkunde alle aktiven Umfragen auf dem Monatskalender, um beliebte Termine auf einen Blick zu sehen.'
-                    : 'Esplora tutti i sondaggi attivi sul calendario mensile per visualizzare a colpo d\'occhio le date più popolate.'}
-                </p>
-              </div>
+          <div data-dns-reveal className="dns-shell space-y-5 py-5 font-body">
+            <section className="dns-card p-5 md:p-6">
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                <div>
+                  <div className="dns-kicker">
+                    {currentLang === 'de' ? 'Planung' : 'Pianificazione'}
+                  </div>
+                  <h1 className="mt-1 flex items-center gap-2 text-[27px] font-semibold tracking-[-.02em] text-dns-deep">
+                    <CalendarIcon className="h-5 w-5 text-dns-mid" />
+                    {currentLang === 'de' ? 'Team-Kalender' : 'Calendario team'}
+                  </h1>
+                  <p className="mt-2 max-w-2xl font-alt text-[11px] leading-relaxed text-dns-muted">
+                    {currentLang === 'de'
+                      ? 'Alle Terminoptionen und bestätigten Sitzungen im Monatsüberblick.'
+                      : 'Tutte le opzioni data e gli appuntamenti confermati nella vista mensile.'}
+                  </p>
+                </div>
 
-              <button
-                onClick={() => setCurrentView('list')}
-                data-dns-press
-                data-dns-hover
-                className="px-4 py-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-800 rounded-sm text-xs font-bold transition-colors shadow-xs"
-              >
-                ← {t('btnAllPolls', currentLang)}
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('list')}
+                  data-dns-press
+                  data-dns-hover
+                  className="dns-btn-secondary min-h-9"
+                >
+                  ← {t('btnAllPolls', currentLang)}
+                </button>
+              </div>
+            </section>
 
             <PollCalendarView
               polls={polls}
