@@ -7,6 +7,10 @@ import {
 } from '../utils/storage';
 import { publicPollForCache, sortPolls } from './pollDocuments';
 
+export function readLegacyPollCache(): Poll[] {
+  return getLocalPolls();
+}
+
 export function readPollCache(): Poll[] {
   return sortPolls(getLocalPolls().map(publicPollForCache));
 }
