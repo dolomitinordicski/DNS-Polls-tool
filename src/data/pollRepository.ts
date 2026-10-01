@@ -248,7 +248,7 @@ async function migrateLegacyCacheIfNeeded(
       );
       result.responsesUpserted += 1;
 
-      if (participant.email) {
+      if (participant.email && !existsRemotely) {
         const contactId = `legacy-${legacySafeId(responseId)}`;
 
         batch.set(
@@ -266,7 +266,6 @@ async function migrateLegacyCacheIfNeeded(
             lastName: participant.lastName || '',
             updatedAt: participant.updatedAt || new Date().toISOString(),
           },
-          { merge: true },
         );
         result.privateContactsUpserted += 1;
       }
