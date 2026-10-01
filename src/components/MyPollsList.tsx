@@ -23,6 +23,7 @@ import {
 } from '../utils/firebaseStorage';
 import { Language, t } from '../utils/i18n';
 import { EditPollModal } from './EditPollModal';
+import { ensurePrivateDataAdminSession } from '../data/privateRecipientSync';
 
 interface MyPollsListProps {
   polls: Poll[];
@@ -106,6 +107,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
         recoveringLegacy: 'Wiederherstellung…',
         recoveryHint: 'Ältere browserlokale Umfragen nach Firestore übertragen.',
         recoveryDone: 'Wiederherstellung abgeschlossen',
+        deleteAuthError: 'Für eine vollständige Löschung inklusive privater E-Mail-Daten ist die DNS-Admin-Anmeldung erforderlich.',
       }
     : {
         kicker: 'Pianificazione',
@@ -137,6 +139,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
         recoveringLegacy: 'Recupero…',
         recoveryHint: 'Importa in Firestore i poll storici ancora presenti nel browser.',
         recoveryDone: 'Recupero completato',
+        deleteAuthError: 'Per eliminare completamente il poll, incluse le e-mail private, è necessario l’accesso amministratore DNS.',
       };
 
   const counts = useMemo(() => {
@@ -188,9 +191,25 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
     window.setTimeout(() => setCopiedId(null), 2500);
   };
 
+  const ensureDeleteAdmin = async (): Promise<boolean> => {
+    try {
+      await ensurePrivateDataAdminSession();
+      return true;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : '';
+      window.alert(
+        detail
+          ? `${copy.deleteAuthError}\n\n${detail}`
+          : copy.deleteAuthError,
+      );
+      return false;
+    }
+  };
+
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!window.confirm(t('confirmDelete', currentLang))) return;
+    if (!(await ensureDeleteAdmin())) return;
 
     await deletePollFromFirestore(id);
     onRefreshList();
@@ -205,6 +224,8 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
     ) {
       return;
     }
+
+    if (!(await ensureDeleteAdmin())) return;
 
     for (const poll of expiredPolls) {
       await deletePollFromFirestore(poll.id);
