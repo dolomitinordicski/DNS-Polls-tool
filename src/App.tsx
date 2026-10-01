@@ -155,7 +155,11 @@ export default function App() {
         currentView={currentView}
         onNavigate={handleNavigate}
         activePollTitle={activePoll?.title}
-        onQuickShareApp={() => setAppShareModalOpen(true)}
+        onQuickShareApp={
+          currentView === 'view' && activePoll
+            ? () => setAppShareModalOpen(true)
+            : undefined
+        }
         isFirestoreConnected={syncStatus === 'live'}
         currentLang={currentLang}
         onLanguageChange={setCurrentLang}
