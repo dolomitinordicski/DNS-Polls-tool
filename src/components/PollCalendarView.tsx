@@ -499,7 +499,7 @@ export const PollCalendarView: React.FC<PollCalendarViewProps> = ({
             aria-modal="true"
             aria-labelledby="calendar-day-dialog-title"
             tabIndex={-1}
-            className="dns-card max-h-[90dvh] w-full max-w-xl overflow-hidden outline-none"
+            className="dns-modal dns-polls-modal-calendar max-h-[90dvh] overflow-hidden outline-none"
           >
             <div className="flex items-start justify-between gap-4 border-b border-dns-mid/10 p-5">
               <div>
