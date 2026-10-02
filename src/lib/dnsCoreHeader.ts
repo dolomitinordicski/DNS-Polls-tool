@@ -1,5 +1,5 @@
 import { collection, getDocs } from 'firebase/firestore';
-import { dnsCoreDesignDb } from './dnsCoreDesign';
+import { dnsCoreDb } from './dnsCore';
 
 export type DNSCoreHeaderStatus =
   | { state: 'loading' }
@@ -9,8 +9,8 @@ export type DNSCoreHeaderStatus =
 export async function probeDNSCoreHeader(): Promise<DNSCoreHeaderStatus> {
   try {
     const [reportingAreas, organizations] = await Promise.all([
-      getDocs(collection(dnsCoreDesignDb, 'reportingAreas')),
-      getDocs(collection(dnsCoreDesignDb, 'organizations')),
+      getDocs(collection(dnsCoreDb, 'reportingAreas')),
+      getDocs(collection(dnsCoreDb, 'organizations')),
     ]);
     return {
       state: 'ready',
