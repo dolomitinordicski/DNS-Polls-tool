@@ -45,6 +45,9 @@ format intentionally includes Europe/Rome timezone data, organizer, attendees,
 RSVP semantics and conference metadata beyond the generic Foundation event
 shape.
 
+QR generation uses `qr.generate` with a local Polls adapter. QR data is rendered
+in-browser and the poll URL is no longer sent to an external QR service.
+
 ## Asset boundary
 
 The DNS web logo is resolved from the same immutable Foundation release tag as
