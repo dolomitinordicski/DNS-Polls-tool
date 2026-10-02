@@ -290,7 +290,7 @@ export default function App() {
                 onClick={() => setCurrentView('list')}
                 data-dns-press
                 data-dns-hover
-                className="dns-btn-secondary min-h-9"
+                className="dns-button min-h-9" data-variant="secondary"
               >
                 ← {t('btnAllPolls', currentLang)}
               </button>
