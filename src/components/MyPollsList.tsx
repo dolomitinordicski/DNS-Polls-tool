@@ -24,6 +24,7 @@ import {
 import { Language, t } from '../utils/i18n';
 import { EditPollModal } from './EditPollModal';
 import { ensurePrivateDataAdminSession } from '../data/privateRecipientSync';
+import { confirmDNSAction } from '@dolomitinordicski/dns-shared-data/ui/primitives';
 
 interface MyPollsListProps {
   polls: Poll[];
@@ -208,7 +209,13 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!window.confirm(t('confirmDelete', currentLang))) return;
+    if (!(await confirmDNSAction({
+      title: currentLang === 'de' ? 'Umfrage löschen' : 'Elimina sondaggio',
+      message: t('confirmDelete', currentLang),
+      confirmLabel: currentLang === 'de' ? 'Löschen' : 'Elimina',
+      cancelLabel: currentLang === 'de' ? 'Abbrechen' : 'Annulla',
+      destructive: true,
+    }))) return;
     if (!(await ensureDeleteAdmin())) return;
 
     await deletePollFromFirestore(id);
@@ -217,13 +224,13 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
 
   const handleDeleteOldPolls = async () => {
     if (expiredPolls.length === 0) return;
-    if (
-      !window.confirm(
-        `${t('confirmDeleteOld', currentLang)} (${expiredPolls.length})`,
-      )
-    ) {
-      return;
-    }
+    if (!(await confirmDNSAction({
+      title: currentLang === 'de' ? 'Alte Umfragen löschen' : 'Elimina vecchi sondaggi',
+      message: `${t('confirmDeleteOld', currentLang)} (${expiredPolls.length})`,
+      confirmLabel: currentLang === 'de' ? 'Löschen' : 'Elimina',
+      cancelLabel: currentLang === 'de' ? 'Abbrechen' : 'Annulla',
+      destructive: true,
+    }))) return;
 
     if (!(await ensureDeleteAdmin())) return;
 
