@@ -5,6 +5,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import type { DNSDesignSystem } from '@dolomitinordicski/dns-shared-data/design-system';
+import { initDNSFooterRuntime } from '@dolomitinordicski/dns-shared-data/ui/footer';
 import { Poll } from './types';
 import { decodePollFromHash } from './utils/storage';
 import {
@@ -34,6 +35,7 @@ import { ShareModal } from './components/ShareModal';
 import { Calendar as CalendarIcon } from 'lucide-react';
 
 export default function App() {
+  useEffect(() => { initDNSFooterRuntime(); }, []);
   const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar'>('list');
   const [polls, setPolls] = useState<Poll[]>([]);
   const [hasInitialPolls, setHasInitialPolls] = useState(!isFirebaseConfigured);
@@ -316,6 +318,7 @@ export default function App() {
       )}
 
       <footer
+        data-dns-tool-footer
         className="mt-6 px-4 py-4 font-alt md:px-[1.8rem]"
         style={{
           background: 'var(--dns-footer-bg)',
