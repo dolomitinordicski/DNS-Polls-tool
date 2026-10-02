@@ -22,7 +22,7 @@ The step focuses on:
 
 ### Shared Accessibility runtime
 
-The existing DNS shared Accessibility module remains the primary user-facing
+The DNS Foundation Accessibility runtime is the single user-facing
 accessibility control.
 
 P.7 adds baseline browser safeguards around it:
@@ -34,13 +34,16 @@ P.7 adds baseline browser safeguards around it:
 
 ### Dialog behavior
 
-A shared `useAccessibleDialog` helper now provides:
+`useAccessibleDialog` is now a thin React lifecycle wrapper around the
+Foundation `openDNSOverlay` contract. Foundation owns:
 
 - initial focus;
 - Tab / Shift+Tab focus trap;
 - Escape to close;
-- focus restoration after closing;
-- background scroll lock.
+- modal semantics.
+
+The Polls wrapper retains only React lifecycle integration, background scroll
+lock and focus restoration after closing.
 
 It is used by:
 
