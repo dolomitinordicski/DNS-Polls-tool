@@ -47,7 +47,6 @@ export const TRANSLATIONS = {
     btnDeleteOldPolls: 'Abgelaufene Umfragen löschen',
     confirmDeleteOld: 'Möchten Sie alle abgelaufenen Umfragen löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
     confirmDelete: 'Möchten Sie diese Umfrage wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.',
-    emailNotifiedBadge: 'E-Mail-Benachrichtigung an management@dolomitinordicski.com gesendet',
     autocompleteHint: 'Aus vorherigen Vorschlägen auswählen',
 
     // CreatePollForm
@@ -255,7 +254,6 @@ export const TRANSLATIONS = {
     btnDeleteOldPolls: 'Elimina Sondaggi Scaduti',
     confirmDeleteOld: 'Sei sicuro di voler eliminare tutti i sondaggi scaduti (con date già passate)? L\'azione è irreversibile.',
     confirmDelete: 'Sei sicuro di voler eliminare questo sondaggio? L\'azione è irreversibile.',
-    emailNotifiedBadge: 'Notifica inviata a management@dolomitinordicski.com',
     autocompleteHint: 'Seleziona dai suggerimenti o scrivi un nuovo valore',
 
     // CreatePollForm
