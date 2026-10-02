@@ -175,7 +175,7 @@ export const PollView: React.FC<PollViewProps> = ({
         onClick={() => setPreviewInvitee(true)}
         data-dns-press
         data-dns-hover
-        className="dns-btn-secondary min-h-8"
+        className="dns-button min-h-8" data-variant="secondary"
       >
         <ExternalLink className="h-3.5 w-3.5" />
         {copy.inviteePreview}
@@ -187,7 +187,7 @@ export const PollView: React.FC<PollViewProps> = ({
         id="open-edit-modal-btn"
         data-dns-press
         data-dns-hover
-        className="dns-btn-secondary min-h-8"
+        className="dns-button min-h-8" data-variant="secondary"
       >
         <Edit3 className="h-3.5 w-3.5" />
         {copy.edit}
@@ -199,7 +199,7 @@ export const PollView: React.FC<PollViewProps> = ({
         id="quick-copy-link-btn"
         data-dns-press
         data-dns-hover
-        className="dns-btn-secondary min-h-8"
+        className="dns-button min-h-8" data-variant="secondary"
       >
         {copiedQuick
           ? <Check className="h-3.5 w-3.5" />
@@ -212,7 +212,7 @@ export const PollView: React.FC<PollViewProps> = ({
         onClick={() => setIsShareOpen(true)}
         id="open-share-modal-btn"
         data-dns-press
-        className="dns-btn-primary min-h-8"
+        className="dns-button min-h-8" data-variant="primary"
       >
         <Share2 className="h-3.5 w-3.5" />
         {copy.share}
