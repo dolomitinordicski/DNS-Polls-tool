@@ -162,4 +162,3 @@ export async function generateTinyUrl(urlToShorten: string): Promise<string> {
   return urlToShorten;
 }
 
-export { generateICalFile } from './ical';
