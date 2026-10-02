@@ -25,6 +25,7 @@ import {
 } from '../utils/pollRecipientStore';
 import { useAccessibleDialog } from '../lib/useAccessibleDialog';
 import { PrivateRecipientSyncControl } from './PrivateRecipientSyncControl';
+import { dnsPollsCapabilities } from '../lib/foundation';
 
 interface ShareModalProps {
   poll: Poll;
@@ -102,7 +103,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await dnsPollsCapabilities.run('clipboard.copy', { text: shareUrl });
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2200);
     } catch (error) {
@@ -114,7 +115,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     try {
       const value = shortUrl || await generateTinyUrl(shareUrl);
       setShortUrl(value);
-      await navigator.clipboard.writeText(value);
+      await dnsPollsCapabilities.run('clipboard.copy', { text: value });
       setCopiedShort(true);
       window.setTimeout(() => setCopiedShort(false), 2200);
     } catch (error) {
