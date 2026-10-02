@@ -180,7 +180,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         aria-labelledby="share-modal-title"
         aria-describedby="share-modal-description"
         tabIndex={-1}
-        className="dns-card flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden outline-none"
+        className="dns-modal dns-polls-modal-medium flex max-h-[92dvh] flex-col overflow-hidden outline-none"
       >
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-dns-mid/10 bg-dns-primary px-5 py-4 text-white">
           <div className="min-w-0">
