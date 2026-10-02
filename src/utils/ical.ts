@@ -197,29 +197,3 @@ export function buildICalContent(
 
   return lines.join('\r\n');
 }
-
-export function generateICalFile(
-  poll: Poll,
-  slotId: string,
-  options: ICalExportOptions = {},
-): void {
-  const content = buildICalContent(poll, slotId, options);
-  if (!content) return;
-
-  const blob = new Blob([content], {
-    type: 'text/calendar;charset=utf-8;method=REQUEST',
-  });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-
-  link.href = url;
-  link.setAttribute(
-    'download',
-    `${poll.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.ics`,
-  );
-
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
