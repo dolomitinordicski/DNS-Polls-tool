@@ -315,7 +315,7 @@ export const PollCalendarView: React.FC<PollCalendarViewProps> = ({
                 id="cal-today-btn"
                 onClick={goToToday}
                 data-dns-press
-                className="dns-btn-secondary h-9"
+                className="dns-button h-9" data-variant="secondary"
               >
                 {copy.today}
               </button>
@@ -487,7 +487,7 @@ export const PollCalendarView: React.FC<PollCalendarViewProps> = ({
 
       {selectedDayEvents && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-dns-deep/55 p-3 backdrop-blur-sm sm:p-5"
+          className="dns-modal-overlay"
           role="presentation"
           onMouseDown={event => {
             if (event.currentTarget === event.target) setSelectedDayEvents(null);
@@ -604,7 +604,7 @@ export const PollCalendarView: React.FC<PollCalendarViewProps> = ({
                           }
                         }}
                         data-dns-press
-                        className="dns-btn-primary min-h-8"
+                        className="dns-button min-h-8" data-variant="primary"
                       >
                         {copy.openPoll}
                         <ArrowRight className="h-3.5 w-3.5" />
