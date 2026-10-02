@@ -337,7 +337,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
                 onClick={() => setShowAssistant(current => !current)}
                 data-dns-press
                 data-dns-hover
-                className="dns-btn-secondary min-h-9 shrink-0"
+                className="dns-button min-h-9 shrink-0" data-variant="secondary"
                 aria-expanded={showAssistant}
               >
                 <AlignLeft className="h-4 w-4" />
@@ -481,7 +481,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
                   onClick={() => handleGenerateFromPrompt()}
                   disabled={!promptText.trim()}
                   data-dns-press
-                  className="dns-btn-primary min-h-9 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="dns-button min-h-9 disabled:cursor-not-allowed disabled:opacity-45" data-variant="primary"
                 >
                   {t('btnGenerateFromPrompt', currentLang)}
                   <ArrowRight className="h-4 w-4" />
@@ -638,7 +638,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
                   type="button"
                   onClick={() => handleAddSlot()}
                   data-dns-press
-                  className="dns-btn-primary h-10 whitespace-nowrap"
+                  className="dns-button h-10 whitespace-nowrap" data-variant="primary"
                 >
                   <Plus className="h-4 w-4" />
                   {copy.addOption}
@@ -898,7 +898,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
               id="create-poll-submit-btn"
               disabled={isSaving}
               data-dns-press
-              className="dns-btn-primary mt-5 min-h-10 w-full disabled:cursor-not-allowed disabled:opacity-50"
+              className="dns-button mt-5 min-h-10 w-full disabled:cursor-not-allowed disabled:opacity-50" data-variant="primary"
             >
               {isSaving ? copy.creating : copy.create}
               <ArrowRight className="h-4 w-4" />
@@ -910,7 +910,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
               disabled={isSaving}
               data-dns-press
               data-dns-hover
-              className="dns-btn-secondary mt-2 min-h-9 w-full"
+              className="dns-button mt-2 min-h-9 w-full" data-variant="secondary"
             >
               {copy.cancel}
             </button>
