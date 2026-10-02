@@ -362,7 +362,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
           type="button"
           onClick={() => onSelectPoll(poll)}
           data-dns-press
-          className="dns-btn-primary h-8 px-3"
+          className="dns-button h-8 px-3" data-variant="primary"
         >
           {t('btnOpen', currentLang)}
           <ExternalLink className="h-3.5 w-3.5" />
@@ -391,7 +391,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
               onClick={onOpenCalendarView}
               data-dns-press
               data-dns-hover
-              className="dns-btn-secondary min-h-9"
+              className="dns-button min-h-9" data-variant="secondary"
             >
               <Calendar className="h-4 w-4" />
               {t('btnCalendarView', currentLang)}
@@ -400,7 +400,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
               type="button"
               onClick={onCreateNew}
               data-dns-press
-              className="dns-btn-primary min-h-9"
+              className="dns-button min-h-9" data-variant="primary"
             >
               <PlusCircle className="h-4 w-4" />
               {t('btnNewPoll', currentLang)}
@@ -574,7 +574,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
                   setFilter('all');
                 }}
                 data-dns-press
-                className="dns-btn-secondary mt-5"
+                className="dns-button mt-5" data-variant="secondary"
               >
                 {copy.clearSearch}
               </button>
@@ -583,7 +583,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
                 type="button"
                 onClick={onCreateNew}
                 data-dns-press
-                className="dns-btn-primary mt-5"
+                className="dns-button mt-5" data-variant="primary"
               >
                 <PlusCircle className="h-4 w-4" />
                 {t('btnCreateFirst', currentLang)}
@@ -718,7 +718,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
                         type="button"
                         onClick={() => onSelectPoll(poll)}
                         data-dns-press
-                        className="dns-btn-primary h-8"
+                        className="dns-button h-8" data-variant="primary"
                       >
                         {t('btnOpen', currentLang)}
                         <ExternalLink className="h-3.5 w-3.5" />
