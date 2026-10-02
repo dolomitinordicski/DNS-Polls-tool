@@ -148,7 +148,7 @@ export const PrivateRecipientSyncControl: React.FC<
         onClick={() => void handleConnect()}
         disabled={isWorking}
         data-dns-press
-        className="dns-btn-secondary min-h-8"
+        className="dns-button min-h-8" data-variant="secondary"
       >
         {isWorking
           ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
