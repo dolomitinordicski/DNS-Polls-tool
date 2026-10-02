@@ -2,8 +2,10 @@ import type { DNSDesignSystem } from '@dolomitinordicski/dns-shared-data/design-
 import { initDNSRevealRuntime } from '@dolomitinordicski/dns-shared-data/ui/motion';
 import { initDNSInteractionRuntime } from '@dolomitinordicski/dns-shared-data/ui/interaction';
 import { initDNSToolChromeRuntime } from '@dolomitinordicski/dns-shared-data/ui/tool-chrome';
+import { initDNSUIPrimitives } from '@dolomitinordicski/dns-shared-data/ui/primitives';
 
 export function initDNSUIRuntime(designSystem: DNSDesignSystem) {
+  initDNSUIPrimitives();
   const interaction = initDNSInteractionRuntime({
     interaction: designSystem.interaction,
     motion: designSystem.motion,
