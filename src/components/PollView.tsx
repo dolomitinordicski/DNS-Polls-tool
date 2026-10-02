@@ -33,7 +33,8 @@ import { PollCalendarView } from './PollCalendarView';
 import { ShareModal } from './ShareModal';
 import { EditPollModal } from './EditPollModal';
 import { FinalizationPanel } from './FinalizationPanel';
-import { confirmDNSAction } from '@dolomitinordicski/dns-shared-data/ui/primitives';
+import { confirmDNSAction, showDNSToast } from '@dolomitinordicski/dns-shared-data/ui/primitives';
+import { dnsPollsCapabilities } from '../lib/foundation';
 import { ensurePrivateDataAdminSession } from '../data/privateRecipientSync';
 
 interface PollViewProps {
@@ -147,7 +148,7 @@ export const PollView: React.FC<PollViewProps> = ({
   };
 
   const handleQuickCopyLink = async () => {
-    await navigator.clipboard.writeText(getPollShareUrl(poll));
+    await dnsPollsCapabilities.run('clipboard.copy', { text: getPollShareUrl(poll) });
     setCopiedQuick(true);
     window.setTimeout(() => setCopiedQuick(false), 2200);
   };
@@ -167,10 +168,12 @@ export const PollView: React.FC<PollViewProps> = ({
       onBackToList();
     } catch (error) {
       const detail = error instanceof Error ? error.message : '';
-      window.alert(
+      showDNSToast(
         detail
-          ? `${copy.deleteAuthError}\n\n${detail}`
+          ? `${copy.deleteAuthError} — ${detail}`
           : copy.deleteAuthError,
+        'error',
+        6000,
       );
     }
   };
