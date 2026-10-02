@@ -33,6 +33,7 @@ import { PollCalendarView } from './PollCalendarView';
 import { ShareModal } from './ShareModal';
 import { EditPollModal } from './EditPollModal';
 import { FinalizationPanel } from './FinalizationPanel';
+import { confirmDNSAction } from '@dolomitinordicski/dns-shared-data/ui/primitives';
 import { ensurePrivateDataAdminSession } from '../data/privateRecipientSync';
 
 interface PollViewProps {
@@ -152,7 +153,13 @@ export const PollView: React.FC<PollViewProps> = ({
   };
 
   const handleDeleteThisPoll = async () => {
-    if (!window.confirm(t('confirmDelete', currentLang))) return;
+    if (!(await confirmDNSAction({
+      title: currentLang === 'de' ? 'Umfrage löschen' : 'Elimina sondaggio',
+      message: t('confirmDelete', currentLang),
+      confirmLabel: currentLang === 'de' ? 'Löschen' : 'Elimina',
+      cancelLabel: currentLang === 'de' ? 'Abbrechen' : 'Annulla',
+      destructive: true,
+    }))) return;
 
     try {
       await ensurePrivateDataAdminSession();
