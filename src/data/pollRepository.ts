@@ -147,8 +147,7 @@ async function migrateLegacyPublicDocumentsIfNeeded(
       );
 
       if (participant.email) {
-        const contactId =
-          `c-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const contactId = `participant-${responseId}`;
 
         batch.set(
           doc(
@@ -253,7 +252,7 @@ async function migrateLegacyCacheIfNeeded(
       result.responsesUpserted += 1;
 
       if (participant.email && !existsRemotely) {
-        const contactId = `legacy-${legacySafeId(responseId)}`;
+        const contactId = `participant-${responseId}`;
 
         batch.set(
           doc(
