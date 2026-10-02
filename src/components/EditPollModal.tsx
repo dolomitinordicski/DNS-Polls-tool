@@ -219,7 +219,7 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-dns-deep/55 p-3 backdrop-blur-sm sm:p-5"
+      className="dns-modal-overlay"
       role="presentation"
       onMouseDown={event => {
         if (event.currentTarget === event.target && !isSaving) onClose();
@@ -232,7 +232,7 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
         aria-labelledby="edit-poll-modal-title"
         aria-describedby="edit-poll-modal-description"
         tabIndex={-1}
-        className="dns-card flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-hidden outline-none"
+        className="dns-modal dns-polls-modal-wide flex max-h-[92dvh] flex-col overflow-hidden outline-none"
       >
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-dns-mid/10 bg-dns-primary px-5 py-4 text-white">
           <div className="min-w-0">
@@ -477,7 +477,7 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
                       type="button"
                       onClick={handleAddSlot}
                       data-dns-press
-                      className="dns-btn-secondary min-h-9"
+                      className="dns-button min-h-9" data-variant="secondary"
                     >
                       <Plus className="h-4 w-4" />
                       {t('btnAddDate', currentLang)}
@@ -510,7 +510,7 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
               onClick={onClose}
               disabled={isSaving}
               data-dns-press
-              className="dns-btn-secondary min-h-10 disabled:opacity-50"
+              className="dns-button min-h-10 disabled:opacity-50" data-variant="secondary"
             >
               {copy.cancel}
             </button>
@@ -518,7 +518,7 @@ export const EditPollModal: React.FC<EditPollModalProps> = ({
               type="submit"
               disabled={isSaving}
               data-dns-press
-              className="dns-btn-primary min-h-10 disabled:cursor-not-allowed disabled:opacity-50"
+              className="dns-button min-h-10 disabled:cursor-not-allowed disabled:opacity-50" data-variant="primary"
             >
               <Save className="h-4 w-4" />
               {isSaving
