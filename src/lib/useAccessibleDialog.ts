@@ -27,6 +27,8 @@ export function useAccessibleDialog<T extends HTMLElement>({
     if (!dialog) return;
 
     const previousOverflow = document.body.style.overflow;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.style.overflow = 'hidden';
 
     const initialFocus = initialFocusSelector
@@ -44,6 +46,9 @@ export function useAccessibleDialog<T extends HTMLElement>({
     return () => {
       overlay.disconnect();
       document.body.style.overflow = previousOverflow;
+      if (previouslyFocused?.isConnected) {
+        previouslyFocused.focus({ preventScroll: true });
+      }
     };
   }, [dialogRef, initialFocusSelector, isOpen]);
 }
