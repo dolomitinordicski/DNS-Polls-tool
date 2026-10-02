@@ -3,8 +3,8 @@ import { setDNSToolChromeActiveSection } from '@dolomitinordicski/dns-shared-dat
 import { formatDNSCoreHeaderStatus } from '@dolomitinordicski/dns-shared-data/ui/header-status';
 import { Share2 } from 'lucide-react';
 import { Language, t } from '../utils/i18n';
-import { AccessibilityMount } from './AccessibilityMount';
 import type { DNSCoreHeaderStatus } from '../lib/dnsCoreHeader';
+import { DNS_POLLS_WEB_LOGO_URL } from '../lib/foundation';
 
 interface HeaderProps {
   currentView: 'create' | 'list' | 'view' | 'calendar';
@@ -39,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
       <header
         data-dns-tool-header
         id="dns-polls-header"
-        className="bg-dns-primary text-white shadow-[0_1px_0_rgba(255,255,255,.08)]"
+        className="bg-[var(--dns-header-bg)] text-white shadow-[var(--dns-header-shadow)]"
       >
         <div className="dns-tool-header-shell">
           <button
@@ -51,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
             aria-label={!isInviteeMode ? t('navMyPolls', currentLang) : undefined}
           >
             <img
-              src="https://dolomitinordicski.github.io/dns-shared-data/brand/logo-web.png"
+              src={DNS_POLLS_WEB_LOGO_URL}
               alt="Dolomiti NordicSki"
               className="dns-tool-header-logo"
             />
@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div className="dns-tool-header-actions">
             <div className="dns-tool-header-controls">
-              <AccessibilityMount language={currentLang} />
+              <div data-dns-accessibility-mount className="flex items-center" />
               <div className="dns-tool-header-language">
                 {(['de', 'it'] as Language[]).map(lang => (
                   <button
