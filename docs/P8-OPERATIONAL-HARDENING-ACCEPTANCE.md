@@ -147,3 +147,12 @@ DNS admin account without changing the invitee response flow.
 Pre-P.8 branch:
 
 `backup/pre-p8-hardening-2026-10-01`
+
+
+## F9 privacy cleanup
+
+The final Foundation freeze removes the obsolete automatic vote-notification
+integration that posted participant names and availability to Formsubmit.
+Participant responses now remain within the Polls Firestore/local-cache
+boundaries defined above. Sharing by e-mail/WhatsApp remains an explicit
+organizer action, and QR codes are generated locally in the browser.
