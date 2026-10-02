@@ -210,7 +210,7 @@ export default function App() {
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               {[0, 1, 2].map(item => (
-                <div key={item} className="dns-kpi h-[86px] animate-pulse" />
+                <div key={item} className="dns-card dns-kpi h-[86px] animate-pulse" />
               ))}
             </div>
             <div className="dns-card min-h-[320px] animate-pulse" />
