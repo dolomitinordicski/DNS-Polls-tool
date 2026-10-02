@@ -465,7 +465,7 @@ export const PollTable: React.FC<PollTableProps> = ({
             type="button"
             onClick={resetIdentity}
             data-dns-press
-            className="dns-btn-secondary min-h-8"
+            className="dns-button min-h-8" data-variant="secondary"
           >
             {currentLang === 'de' ? 'Bearbeitung abbrechen' : 'Annulla modifica'}
           </button>
@@ -693,7 +693,7 @@ export const PollTable: React.FC<PollTableProps> = ({
             type="submit"
             disabled={isSubmitting}
             data-dns-press
-            className="dns-btn-primary min-h-10 min-w-[180px] disabled:cursor-not-allowed disabled:opacity-50"
+            className="dns-button min-h-10 min-w-[180px] disabled:cursor-not-allowed disabled:opacity-50" data-variant="primary"
           >
             {isSubmitting
               ? copy.submitting
