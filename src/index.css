@@ -148,54 +148,10 @@ textarea {
     font-size: 10px;
   }
 
-  .dns-btn,
-  .dns-btn-primary,
-  .dns-btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: .375rem;
-    border-radius: var(--dns-control-radius);
-    padding: .5rem .875rem;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: .02em;
-    transition:
-      background-color var(--dns-motion-standard) var(--dns-motion-easing),
-      border-color var(--dns-motion-standard) var(--dns-motion-easing),
-      color var(--dns-motion-standard) var(--dns-motion-easing),
-      box-shadow var(--dns-motion-standard) var(--dns-motion-easing);
-  }
-
-  .dns-btn-primary {
-    border: 1px solid transparent;
-    background: var(--dns-control-primary-bg, var(--color-dns-deep));
-    color: #fff;
-  }
-
-  .dns-btn-primary:hover {
-    background: var(--dns-control-primary-hover, var(--color-dns-mid));
-  }
-
-  .dns-btn-secondary {
-    border: 1px solid var(--dns-control-border, var(--color-dns-border));
-    background: var(--color-dns-surface);
-    color: var(--color-dns-deep);
-  }
-
-  .dns-btn-secondary:hover {
-    background: rgba(13,77,94,.04);
-  }
-
-  .dns-input {
-    border: 1px solid var(--dns-control-border, var(--color-dns-border));
-    border-radius: var(--dns-control-radius);
-    background: var(--color-dns-surface);
-    padding: .5rem .75rem;
-    color: var(--color-dns-deep);
-    font-family: var(--font-alt);
-    font-size: 12px;
-  }
+  /* Foundation v1.18 owns dns-button and dns-input primitives. */
+  .dns-polls-modal-wide { width: min(896px, calc(100vw - 2rem)); }
+  .dns-polls-modal-medium { width: min(672px, calc(100vw - 2rem)); }
+  .dns-polls-modal-calendar { width: min(576px, calc(100vw - 2rem)); }
 }
 
 input[type="text"],
