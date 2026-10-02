@@ -1,104 +1,61 @@
-# DNS Polls — P.1 Foundation Architecture Audit
+# DNS Polls — Foundation Architecture
 
-Date: 2026-10-01
+Date: 2026-10-03
 
-## Scope
+## Current contract
 
-P.1 aligns the DNS Polls application shell with the canonical DNS Foundation without changing poll-domain behavior or Firestore persistence rules.
+DNS Polls consumes the immutable DNS Foundation release `foundation-v1.2.0`.
 
-Canonical references:
+Foundation owns:
+- Design System variables and shared UI primitives;
+- operational shell, header/navigation and scroll behavior;
+- DE-first language preference and persistence;
+- Accessibility runtime;
+- motion and interaction runtimes;
+- footer runtime;
+- overlays and confirmation semantics;
+- capability runtime for clipboard and calendar export;
+- immutable DNS brand assets.
 
-- DNS Foundation v1.2
-- DNS Design System v1.12.1
-- shared motion runtime
-- shared interaction runtime
-- shared accessibility runtime
-- shared navigation runtime
-- DNS_Core `designSystem/current`
+Polls owns:
+- poll creation, editing, voting and finalization;
+- Firestore collections and synchronization;
+- invitee and organizer workflows;
+- private recipient handling and GDPR deletion;
+- Polls-specific calendar/ICS content;
+- local parser and poll-domain presentation.
 
-## Before P.1
+## Runtime boundary
 
-DNS Polls already consumed an earlier pinned version of `dns-shared-data` for motion and interaction, but the application shell still owned several local behaviors:
+`src/main.tsx` initializes Foundation before React renders.
 
-- hard-coded design tokens in `src/index.css`;
-- local header geometry;
-- local tab/navigation styling;
-- no shared Foundation accessibility module;
-- no DNS_Core design-system runtime load;
-- no shared measured sticky navigation/progress behavior.
+`src/lib/foundation.ts` is the only Polls bridge to shared Foundation runtime
+services. Polls does not load a second Design System from DNS Core and does not
+reimplement shared tokens, motion, navigation, accessibility or footer behavior.
 
-The poll data model, Firestore synchronization and invitee flows were intentionally not part of this step.
+DNS Core is still consumed read-only for shared status/master-data checks, but
+it is not a runtime Design System source.
 
-## P.1 architecture
+## Capability boundary
 
-### Canonical design source
+Clipboard actions use `clipboard.copy`.
 
-`@dolomitinordicski/dns-shared-data` is pinned to Foundation / Design System v1.12.1.
+Outlook/ICS export uses `calendar.ics` with a Polls adapter because the Polls
+format intentionally includes Europe/Rome timezone data, organizer, attendees,
+RSVP semantics and conference metadata beyond the generic Foundation event
+shape.
 
-Runtime resolution:
+## Asset boundary
 
-1. apply the versioned package fallback immediately;
-2. read `DNS_Core/designSystem/current`;
-3. deep-merge the remote declarative payload over the fallback;
-4. apply CSS variables;
-5. re-initialize motion/interaction only when their runtime signature changes.
+The DNS web logo is resolved from the same immutable Foundation release tag as
+the package dependency. No DNS brand image is copied into this repository.
 
-No executable code is loaded from Firestore.
+## Persistence boundary
 
-### Shared behavior
-
-The application shell now consumes:
-
-- `ui/motion`
-- `ui/interaction`
-- `ui/accessibility`
-- `ui/navigation`
-
-Navigation owns:
-
-- measured sticky header/navigation offsets;
-- scroll progress;
-- canonical tab geometry and active state;
-- responsive horizontal/wrapped behavior.
-
-Accessibility owns:
-
-- text scale;
-- high contrast;
-- relaxed spacing;
-- reduced motion;
-- stronger focus;
-- comfortable density;
-- local-only browser persistence.
-
-### Polls-specific exceptions retained
-
-These remain application responsibilities:
-
-- invitee mode;
-- poll title context strip;
-- DE/IT language switch;
-- Polls navigation labels;
-- quick share action;
-- poll views and workflow state.
-
-Tool-specific navigation content is retained; navigation behavior is not reimplemented.
-
-## Explicitly deferred to P.2
-
-P.1 does not modify:
-
+Foundation migration does not change:
 - Firestore rules;
-- collection permissions;
-- poll import/list behavior;
-- localStorage migration behavior;
-- `polls / responses / privateContacts` persistence;
+- poll, response or privateContacts schemas;
+- local cache/migration behavior;
 - authentication policy.
 
-The known Firestore collection-list regression is therefore still tracked for P.2.
-
-## Rollback point
-
-Pre-refactor branch:
-
-`backup/pre-foundation-p1-2026-10-01`
+These remain Polls-owned domain responsibilities.
