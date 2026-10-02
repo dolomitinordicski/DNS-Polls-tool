@@ -26,6 +26,7 @@ import {
 import { parsePollPrompt } from '../utils/localPromptParser';
 import { parseRecipientEmails, savePollRecipientsSynced } from '../utils/pollRecipientStore';
 import { PrivateRecipientSyncControl } from './PrivateRecipientSyncControl';
+import { dnsPollsCapabilities } from '../lib/foundation';
 
 const PROMPT_HELPERS = {
   it: `Trasforma il testo che ti invio in un prompt pronto per DNS Polls. Restituisci SOLO il prompt finale, senza spiegazioni. Strutturalo così: titolo della riunione; luogo oppure "Online"; breve descrizione/ordine del giorno; tutte le date complete con TUTTE le fasce orarie per ciascun giorno. Usa date esplicite (es. 1 ottobre 2026) e orari nel formato 08:00-09:30. Se più date hanno gli stessi orari, puoi raggrupparle (es. 1, 2, 6 e 7 ottobre: 08:00-09:30, 10:00-11:30, 14:00-15:30). Non inserire organizzatore o email: DNS Polls li compila automaticamente. Testo da trasformare:`,
@@ -428,7 +429,7 @@ export const CreatePollForm: React.FC<CreatePollFormProps> = ({
                         key={langCode}
                         type="button"
                         onClick={async () => {
-                          await navigator.clipboard.writeText(PROMPT_HELPERS[langCode]);
+                          await dnsPollsCapabilities.run('clipboard.copy', { text: PROMPT_HELPERS[langCode] });
                           setCopiedHelper(langCode);
                           window.setTimeout(
                             () => setCopiedHelper(current =>
