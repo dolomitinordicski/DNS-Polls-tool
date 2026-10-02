@@ -408,7 +408,7 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
                         onClick={() => void handleSaveConference()}
                         disabled={isSavingConference}
                         data-dns-press
-                        className="dns-btn-secondary min-h-10 shrink-0 disabled:opacity-50"
+                        className="dns-button min-h-10 shrink-0 disabled:opacity-50" data-variant="secondary"
                       >
                         {conferenceSaved
                           ? <Check className="h-4 w-4" />
@@ -456,7 +456,7 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
                     onClick={() => void handleCopyRecipients()}
                     disabled={validRecipients.length === 0}
                     data-dns-press
-                    className="dns-btn-secondary min-h-8 disabled:opacity-40"
+                    className="dns-button min-h-8 disabled:opacity-40" data-variant="secondary"
                   >
                     {copiedRecipients
                       ? <Check className="h-3.5 w-3.5" />
@@ -468,7 +468,7 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
                     type="button"
                     onClick={() => void handleSaveRecipients()}
                     data-dns-press
-                    className="dns-btn-secondary min-h-8"
+                    className="dns-button min-h-8" data-variant="secondary"
                   >
                     {recipientsSaved
                       ? <Check className="h-3.5 w-3.5" />
@@ -500,7 +500,7 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
               type="button"
               onClick={() => void handleDownload()}
               data-dns-press
-              className="dns-btn-primary min-h-10 shrink-0"
+              className="dns-button min-h-10 shrink-0" data-variant="primary"
             >
               <Download className="h-4 w-4" />
               {copy.download}
