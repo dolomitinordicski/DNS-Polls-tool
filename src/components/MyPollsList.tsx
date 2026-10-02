@@ -24,7 +24,8 @@ import {
 import { Language, t } from '../utils/i18n';
 import { EditPollModal } from './EditPollModal';
 import { ensurePrivateDataAdminSession } from '../data/privateRecipientSync';
-import { confirmDNSAction } from '@dolomitinordicski/dns-shared-data/ui/primitives';
+import { confirmDNSAction, showDNSToast } from '@dolomitinordicski/dns-shared-data/ui/primitives';
+import { dnsPollsCapabilities } from '../lib/foundation';
 
 interface MyPollsListProps {
   polls: Poll[];
@@ -187,7 +188,7 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
 
   const handleCopyLink = async (poll: Poll, e: React.MouseEvent) => {
     e.stopPropagation();
-    await navigator.clipboard.writeText(getPollShareUrl(poll));
+    await dnsPollsCapabilities.run('clipboard.copy', { text: getPollShareUrl(poll) });
     setCopiedId(poll.id);
     window.setTimeout(() => setCopiedId(null), 2500);
   };
@@ -198,10 +199,12 @@ export const MyPollsList: React.FC<MyPollsListProps> = ({
       return true;
     } catch (error) {
       const detail = error instanceof Error ? error.message : '';
-      window.alert(
+      showDNSToast(
         detail
-          ? `${copy.deleteAuthError}\n\n${detail}`
+          ? `${copy.deleteAuthError} — ${detail}`
           : copy.deleteAuthError,
+        'error',
+        6000,
       );
       return false;
     }
