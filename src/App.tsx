@@ -4,8 +4,6 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import type { DNSDesignSystem } from '@dolomitinordicski/dns-shared-data/design-system';
-import { initDNSFooterRuntime } from '@dolomitinordicski/dns-shared-data/ui/footer';
 import { Poll } from './types';
 import { decodePollFromHash } from './utils/storage';
 import {
@@ -17,15 +15,14 @@ import {
   subscribeToPollsFromFirestore,
 } from './utils/firebaseStorage';
 import { isFirebaseConfigured } from './lib/firebase';
-import { DNS_DESIGN_FALLBACK } from './design/fallback';
 import { probeDNSCoreHeader, type DNSCoreHeaderStatus } from './lib/dnsCoreHeader';
-import {
-  applyDNSDesignFallback,
-  dnsRuntimeSignature,
-  loadAndApplyDNSDesignSystem,
-} from './lib/designSystem';
-import { initDNSUIRuntime } from './lib/uiRuntime';
 import { Language, t } from './utils/i18n';
+import {
+  DNS_POLLS_FOUNDATION_VERSION,
+  getDNSPollsLanguage,
+  setDNSPollsLanguage,
+  subscribeDNSPollsLanguage,
+} from './lib/foundation';
 import { Header } from './components/Header';
 import { MyPollsList } from './components/MyPollsList';
 import { CreatePollForm } from './components/CreatePollForm';
@@ -35,15 +32,13 @@ import { ShareModal } from './components/ShareModal';
 import { Calendar as CalendarIcon } from 'lucide-react';
 
 export default function App() {
-  useEffect(() => { initDNSFooterRuntime(); }, []);
   const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar'>('list');
   const [polls, setPolls] = useState<Poll[]>([]);
   const [hasInitialPolls, setHasInitialPolls] = useState(!isFirebaseConfigured);
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
   const [appShareModalOpen, setAppShareModalOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<FirestoreSyncStatus>(isFirebaseConfigured ? 'connecting' : 'offline');
-  const [currentLang, setCurrentLang] = useState<Language>('de');
-  const [designSystem, setDesignSystem] = useState<DNSDesignSystem>(DNS_DESIGN_FALLBACK);
+  const [currentLang, setCurrentLang] = useState<Language>(() => getDNSPollsLanguage());
   const [coreStatus, setCoreStatus] = useState<DNSCoreHeaderStatus>({ state: 'loading' });
   const [legacyCandidateIds, setLegacyCandidateIds] = useState<string[]>(() =>
     getLegacyPollCandidateIds(),
@@ -96,29 +91,7 @@ export default function App() {
     void probeDNSCoreHeader().then(setCoreStatus);
   }, []);
 
-  useEffect(() => {
-    let disposed = false;
-    let activeDesignSystem = applyDNSDesignFallback();
-    setDesignSystem(activeDesignSystem);
-    let disposeRuntime = initDNSUIRuntime(activeDesignSystem);
-
-    void loadAndApplyDNSDesignSystem().then(({ designSystem: loadedDesignSystem }) => {
-      if (disposed) return;
-
-      if (dnsRuntimeSignature(loadedDesignSystem) !== dnsRuntimeSignature(activeDesignSystem)) {
-        disposeRuntime?.();
-        disposeRuntime = initDNSUIRuntime(loadedDesignSystem);
-      }
-
-      activeDesignSystem = loadedDesignSystem;
-      setDesignSystem(loadedDesignSystem);
-    });
-
-    return () => {
-      disposed = true;
-      disposeRuntime?.();
-    };
-  }, []);
+  useEffect(() => subscribeDNSPollsLanguage(setCurrentLang), []);
 
   // Public links load only the requested poll.
   useEffect(() => {
@@ -198,7 +171,7 @@ export default function App() {
   return (
     <div
       className="min-h-screen bg-dns-bg text-dns-primary flex flex-col font-body selection:bg-dns-soft selection:text-dns-primary"
-      data-dns-foundation={designSystem.version}
+      data-dns-foundation={DNS_POLLS_FOUNDATION_VERSION}
     >
       <Header
         currentView={currentView}
@@ -210,7 +183,7 @@ export default function App() {
         }
         coreStatus={coreStatus}
         currentLang={currentLang}
-        onLanguageChange={setCurrentLang}
+        onLanguageChange={setDNSPollsLanguage}
         isInviteeMode={isInviteeLink && currentView === 'view'}
       />
 
@@ -317,18 +290,10 @@ export default function App() {
         />
       )}
 
-      <footer
-        data-dns-tool-footer
-        className="mt-6 px-4 py-4 font-alt md:px-[1.8rem]"
-        style={{
-          background: 'var(--dns-footer-bg)',
-          color: 'var(--dns-footer-text)',
-          fontSize: 'var(--dns-footer-size)',
-        }}
-      >
-        <div className="mx-auto flex max-w-[1440px] flex-col items-start justify-between gap-1 uppercase tracking-[.04em] md:flex-row md:items-center">
-          <span>Dolomiti NordicSki</span>
-          <span>DNS Polls · © {new Date().getFullYear()}</span>
+      <footer data-dns-tool-footer className="mt-6">
+        <div className="dns-tool-footer-shell">
+          <span className="dns-tool-footer-primary">Dolomiti NordicSki</span>
+          <span className="dns-tool-footer-meta">DNS Polls · Foundation v{DNS_POLLS_FOUNDATION_VERSION} · © {new Date().getFullYear()}</span>
         </div>
       </footer>
     </div>
