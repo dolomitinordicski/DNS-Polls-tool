@@ -41,6 +41,7 @@ textarea {
   }
 
   .dns-kpi {
+    border: 1px solid var(--color-dns-subtle-border);
     border-top: 3px solid var(--color-dns-light);
     padding: 1rem;
   }
