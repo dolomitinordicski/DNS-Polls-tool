@@ -5,6 +5,7 @@ import {
 import type { DNSCapabilityAdapter } from '@dolomitinordicski/dns-shared-data/capability-runtime';
 import { DNS_FOUNDATION_RELEASE_VERSION } from '@dolomitinordicski/dns-shared-data/release';
 import type { Poll } from '../types';
+import QRCode from 'qrcode';
 import { buildICalContent, type ICalExportOptions } from '../utils/ical';
 
 export type DNSPollsLanguage = 'de' | 'it';
@@ -55,6 +56,22 @@ const icsAdapter: DNSCapabilityAdapter<PollsICSPayload> = {
   },
 };
 
+const qrAdapter: DNSCapabilityAdapter<
+  { value: string; size?: number },
+  { dataUrl: string }
+> = {
+  id: 'dns-polls-qr',
+  capabilities: ['qr.generate'],
+  async execute({ value, size = 220 }) {
+    return {
+      dataUrl: await QRCode.toDataURL(value, {
+        width: size,
+        margin: 1,
+      }),
+    };
+  },
+};
+
 let foundation: DNSFoundationRuntimeHandle | null = null;
 
 export function initDNSPollsFoundation(language?: DNSPollsLanguage) {
@@ -62,8 +79,8 @@ export function initDNSPollsFoundation(language?: DNSPollsLanguage) {
     foundation = initDNSFoundation({
       language,
       shellProfile: 'operational',
-      capabilities: ['calendar.ics', 'clipboard.copy'],
-      capabilityAdapters: [icsAdapter],
+      capabilities: ['calendar.ics', 'clipboard.copy', 'qr.generate'],
+      capabilityAdapters: [icsAdapter, qrAdapter],
       accessibility: {
         enabled: true,
         mountSelector: '[data-dns-accessibility-mount]',
@@ -93,7 +110,7 @@ export function subscribeDNSPollsLanguage(
 
 export const dnsPollsCapabilities = {
   run<T = unknown>(
-    capability: 'calendar.ics' | 'clipboard.copy',
+    capability: 'calendar.ics' | 'clipboard.copy' | 'qr.generate',
     input?: unknown,
   ) {
     return initDNSPollsFoundation().capabilityRuntime.run<T>(capability, input);
