@@ -167,7 +167,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-dns-deep/55 p-3 backdrop-blur-sm sm:p-5"
+      className="dns-modal-overlay"
       role="presentation"
       onMouseDown={event => {
         if (event.currentTarget === event.target) onClose();
@@ -235,7 +235,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   type="button"
                   onClick={() => void handleCopy()}
                   data-dns-press
-                  className="dns-btn-primary min-h-10 shrink-0"
+                  className="dns-button min-h-10 shrink-0" data-variant="primary"
                 >
                   {copied
                     ? <Check className="h-4 w-4" />
@@ -271,7 +271,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   onClick={() => void handleShortUrl()}
                   disabled={loadingShort}
                   data-dns-press
-                  className="dns-btn-secondary min-h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="dns-button min-h-10 shrink-0 disabled:cursor-not-allowed disabled:opacity-50" data-variant="secondary"
                 >
                   {loadingShort
                     ? <Loader2 className="h-4 w-4 animate-spin" />
@@ -330,7 +330,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   type="button"
                   onClick={() => void handleSaveRecipients()}
                   data-dns-press
-                  className="dns-btn-secondary min-h-9 shrink-0"
+                  className="dns-button min-h-9 shrink-0" data-variant="secondary"
                 >
                   {recipientsSaved
                     ? <Check className="h-3.5 w-3.5" />
@@ -348,7 +348,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   target="_blank"
                   rel="noopener noreferrer"
                   id="whatsapp-share-btn"
-                  className="dns-btn-secondary min-h-10"
+                  className="dns-button min-h-10" data-variant="secondary"
                 >
                   <MessageCircle className="h-4 w-4" />
                   WhatsApp
@@ -356,7 +356,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 <a
                   href={`mailto:?subject=${emailSubject}&body=${emailBody}`}
                   id="email-share-btn"
-                  className="dns-btn-secondary min-h-10"
+                  className="dns-button min-h-10" data-variant="secondary"
                 >
                   <Mail className="h-4 w-4" />
                   {t('sendEmail', currentLang)}
@@ -406,7 +406,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             type="button"
             onClick={onClose}
             data-dns-press
-            className="dns-btn-secondary min-h-9"
+            className="dns-button min-h-9" data-variant="secondary"
           >
             {t('btnClose', currentLang)}
           </button>
