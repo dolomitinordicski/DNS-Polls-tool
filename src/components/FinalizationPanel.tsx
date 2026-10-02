@@ -21,7 +21,6 @@ import {
 } from '../utils/dateUtils';
 import { savePollToFirestore } from '../utils/firebaseStorage';
 import { Language, t } from '../utils/i18n';
-import { generateICalFile } from '../utils/ical';
 import {
   formatPollRecipients,
   getPollRecipients,
@@ -31,6 +30,7 @@ import {
 } from '../utils/pollRecipientStore';
 import { PrivateRecipientSyncControl } from './PrivateRecipientSyncControl';
 import { confirmDNSAction } from '@dolomitinordicski/dns-shared-data/ui/primitives';
+import { dnsPollsCapabilities } from '../lib/foundation';
 
 interface FinalizationPanelProps {
   poll: Poll;
@@ -222,7 +222,7 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
 
   const handleCopyRecipients = async () => {
     if (validRecipients.length === 0) return;
-    await navigator.clipboard.writeText(validRecipients.join('; '));
+    await dnsPollsCapabilities.run('clipboard.copy', { text: validRecipients.join('; ') });
     setCopiedRecipients(true);
     window.setTimeout(() => setCopiedRecipients(false), 1800);
   };
@@ -235,17 +235,17 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
       recipientInput,
     );
 
-    generateICalFile(
-      {
+    await dnsPollsCapabilities.run('calendar.ics', {
+      poll: {
         ...poll,
         conferenceUrl: conferenceUrl.trim() || poll.conferenceUrl,
       },
-      poll.finalizedSlotId,
-      {
+      slotId: poll.finalizedSlotId,
+      options: {
         lang: currentLang,
         attendeeEmails: recipients,
       },
-    );
+    });
   };
 
   return (

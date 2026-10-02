@@ -25,6 +25,7 @@ import {
 } from '../utils/pollRecipientStore';
 import { useAccessibleDialog } from '../lib/useAccessibleDialog';
 import { PrivateRecipientSyncControl } from './PrivateRecipientSyncControl';
+import { dnsPollsCapabilities } from '../lib/foundation';
 
 interface ShareModalProps {
   poll: Poll;
@@ -43,6 +44,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [copiedShort, setCopiedShort] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [shortUrl, setShortUrl] = useState<string | null>(null);
   const [loadingShort, setLoadingShort] = useState(false);
   const [recipientInput, setRecipientInput] = useState('');
@@ -67,6 +69,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     setCopiedShort(false);
     setRecipientsSaved(false);
     setShowQr(false);
+    setQrCodeUrl(null);
   }, [isOpen, poll.id]);
 
   if (!isOpen) return null;
@@ -102,7 +105,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await dnsPollsCapabilities.run('clipboard.copy', { text: shareUrl });
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2200);
     } catch (error) {
@@ -114,7 +117,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     try {
       const value = shortUrl || await generateTinyUrl(shareUrl);
       setShortUrl(value);
-      await navigator.clipboard.writeText(value);
+      await dnsPollsCapabilities.run('clipboard.copy', { text: value });
       setCopiedShort(true);
       window.setTimeout(() => setCopiedShort(false), 2200);
     } catch (error) {
@@ -162,8 +165,26 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       : `Ciao,\n\nindica le tue disponibilità per “${poll.title}”.\n\n${shareUrl}\n\nGrazie,\n${poll.organizerName}`,
   );
 
-  const qrCodeUrl =
-    `https://api.qrserver.com/v1/create-qr-code/?size=220x220&color=0D4D5E&bgcolor=FFFFFF&data=${encodeURIComponent(shareUrl)}`;
+  const handleToggleQr = async () => {
+    if (showQr) {
+      setShowQr(false);
+      return;
+    }
+
+    setShowQr(true);
+    if (qrCodeUrl) return;
+
+    try {
+      const result = await dnsPollsCapabilities.run<{ dataUrl: string }>(
+        'qr.generate',
+        { value: shareUrl, size: 220 },
+      );
+      setQrCodeUrl(result.output.dataUrl);
+    } catch (error) {
+      console.error('QR generation failed:', error);
+      setShowQr(false);
+    }
+  };
 
   return (
     <div
@@ -367,7 +388,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             <section className="border-t border-dns-mid/10 pt-4">
               <button
                 type="button"
-                onClick={() => setShowQr(value => !value)}
+                onClick={() => void handleToggleQr()}
                 id="toggle-qr-btn"
                 data-dns-press
                 className="flex min-h-9 w-full items-center justify-between gap-3 rounded-md border border-dns-mid/10 bg-dns-bg px-3 font-alt text-[10px] font-semibold text-dns-deep"
@@ -387,11 +408,17 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   className="mt-3 flex flex-col items-center rounded-lg border border-dns-mid/10 bg-dns-bg p-4 text-center"
                 >
                   <div className="dns-kicker">{copy.qr}</div>
-                  <img
-                    src={qrCodeUrl}
-                    alt={copy.qrAlt}
-                    className="mt-3 h-40 w-40 rounded-md border border-dns-mid/15 bg-white p-2"
-                  />
+                  {qrCodeUrl ? (
+                    <img
+                      src={qrCodeUrl}
+                      alt={copy.qrAlt}
+                      className="mt-3 h-40 w-40 rounded-md border border-dns-mid/15 bg-white p-2"
+                    />
+                  ) : (
+                    <div className="mt-3 flex h-40 w-40 items-center justify-center rounded-md border border-dns-mid/15 bg-white">
+                      <Loader2 className="h-5 w-5 animate-spin text-dns-mid" aria-hidden="true" />
+                    </div>
+                  )}
                   <p className="mt-2 font-alt text-[9px] text-dns-muted">
                     {t('scanQrNote', currentLang)}
                   </p>

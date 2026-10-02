@@ -1,7 +1,7 @@
 import { getApps, initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 
-const DNS_CORE_APP_NAME = 'dns-core-design-system';
+const DNS_CORE_APP_NAME = 'dns-core-polls';
 
 const dnsCoreConfig = {
   apiKey: 'AIzaSyAgxv6Z45-AfrusbFnCSyvYChRUBu6-vXc',
@@ -17,4 +17,4 @@ const dnsCoreApp =
   getApps().find(app => app.name === DNS_CORE_APP_NAME) ??
   initializeApp(dnsCoreConfig, DNS_CORE_APP_NAME);
 
-export const dnsCoreDesignDb = getFirestore(dnsCoreApp);
+export const dnsCoreDb = getFirestore(dnsCoreApp);

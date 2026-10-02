@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Clock,
   HelpCircle,
-  Mail,
   Pencil,
   Send,
   Trophy,
@@ -24,7 +23,6 @@ import {
   getTopVotedSlot,
 } from '../utils/dateUtils';
 import { Language, t } from '../utils/i18n';
-import { sendParticipantVoteNotification } from '../utils/emailNotifier';
 
 interface PollTableProps {
   poll: Poll;
@@ -56,7 +54,6 @@ export const PollTable: React.FC<PollTableProps> = ({
   const [editingParticipantId, setEditingParticipantId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [emailStatusMsg, setEmailStatusMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const topSlotId = getTopVotedSlot(poll.slots, poll.participants);
@@ -210,26 +207,8 @@ export const PollTable: React.FC<PollTableProps> = ({
 
       setSubmitSuccess(true);
 
-      const emailRes = await sendParticipantVoteNotification(
-        poll,
-        cleanName,
-        myVotes,
-        Boolean(editingParticipantId),
-      );
-
-      if (emailRes.success) {
-        setEmailStatusMsg(t('emailNotifiedBadge', currentLang));
-      } else {
-        setEmailStatusMsg(
-          currentLang === 'de'
-            ? 'Antwort gespeichert.'
-            : 'Risposta salvata.',
-        );
-      }
-
       window.setTimeout(() => {
         setSubmitSuccess(false);
-        setEmailStatusMsg(null);
       }, 4500);
 
       if (!editingParticipantId) resetIdentity();
@@ -677,12 +656,7 @@ export const PollTable: React.FC<PollTableProps> = ({
               <div className="font-semibold">
                 {errorMsg || copy.responseSaved}
               </div>
-              {submitSuccess && emailStatusMsg && (
-                <div className="mt-0.5 flex items-center gap-1 text-[9px]">
-                  <Mail className="h-3 w-3" />
-                  {emailStatusMsg}
-                </div>
-              )}
+
             </div>
           </div>
         )}
