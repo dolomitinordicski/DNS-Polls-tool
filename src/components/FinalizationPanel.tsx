@@ -30,6 +30,7 @@ import {
   savePollRecipientsSynced,
 } from '../utils/pollRecipientStore';
 import { PrivateRecipientSyncControl } from './PrivateRecipientSyncControl';
+import { confirmDNSAction } from '@dolomitinordicski/dns-shared-data/ui/primitives';
 
 interface FinalizationPanelProps {
   poll: Poll;
@@ -166,7 +167,14 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
         ? copy.reopenQuestion
         : copy.confirmQuestion;
 
-    if (!window.confirm(question)) return;
+    const confirmed = await confirmDNSAction({
+      title: currentLang === 'de' ? 'Termin bestätigen' : 'Conferma appuntamento',
+      message: question,
+      confirmLabel: currentLang === 'de' ? 'Bestätigen' : 'Conferma',
+      cancelLabel: currentLang === 'de' ? 'Abbrechen' : 'Annulla',
+      destructive: poll.finalizedSlotId === selectedSlotId,
+    });
+    if (!confirmed) return;
 
     await onFinalizeSlot(selectedSlotId);
   };
@@ -339,11 +347,8 @@ export const FinalizationPanel: React.FC<FinalizationPanelProps> = ({
             type="button"
             onClick={() => void handleFinalize()}
             data-dns-press
-            className={
-              poll.finalizedSlotId === selectedSlotId
-                ? 'dns-btn-secondary min-h-9'
-                : 'dns-btn-primary min-h-9'
-            }
+            className="dns-button min-h-9"
+            data-variant={poll.finalizedSlotId === selectedSlotId ? 'secondary' : 'primary'}
           >
             {poll.finalizedSlotId === selectedSlotId
               ? <RotateCcw className="h-4 w-4" />
