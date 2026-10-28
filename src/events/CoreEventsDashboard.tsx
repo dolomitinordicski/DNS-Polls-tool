@@ -5,6 +5,7 @@ import { dnsCoreAuth } from '../lib/dnsCore';
 import { eventCopy } from './copy';
 import { listEvents } from './repository';
 import { EventEditor } from './EventEditor';
+import { EventsDesignPreview } from './EventsDesignPreview';
 import type { DNSEvent } from './types';
 
 export function CoreEventsDashboard({ lang }: { lang: Language }) {
@@ -26,6 +27,10 @@ export function CoreEventsDashboard({ lang }: { lang: Language }) {
     return () => { active = false; };
   }, [signedIn, c.failed]);
 
+  // Same local-only workshop when the DNS Core SSO bridge is enabled but
+  // the user has not signed in. No token or Firestore read is attempted.
+  if (!signedIn) return <EventsDesignPreview lang={lang} />;
+
   return (
     <div className="dns-shell space-y-5 py-6">
       <section className="dns-card flex flex-wrap items-center justify-between gap-3 p-5">
@@ -38,17 +43,6 @@ export function CoreEventsDashboard({ lang }: { lang: Language }) {
             onClick={() => setCreating(true)}>{c.create}</button>
         )}
       </section>
-      {!signedIn && signedIn !== null && (
-        <section className="dns-card p-5 space-y-3">
-          <p>{lang === 'de' ? 'Bitte melden Sie sich zunächst im DNS Workspace an.'
-            : 'Accedi prima a DNS Workspace con il tuo account DNS.'}</p>
-          <a className="dns-button" data-variant="primary"
-            href="https://dolomitinordicski.github.io/dns-workspace/">
-            DNS Workspace
-          </a>
-        </section>
-      )}
-      {signedIn === null && <p>{c.loading}</p>}
       {signedIn && creating ? (
         <EventEditor lang={lang} onCreated={event => {
           setEvents(current => [event, ...current]);
