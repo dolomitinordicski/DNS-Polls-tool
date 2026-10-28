@@ -52,7 +52,7 @@ export default function App() {
   const initialPublicTarget = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     const pollId = params.get('poll') || params.get('p');
-    const eventId = import.meta.env.VITE_DNS_EVENTS_ENABLED === 'true'
+    const eventId = import.meta.env.VITE_DNS_EVENT_REGISTRATION_ENABLED === 'true'
       ? params.get('event') : null;
     const hashPoll = decodePollFromHash();
     return { pollId, hashPoll, eventId };
