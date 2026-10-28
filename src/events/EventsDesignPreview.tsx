@@ -9,7 +9,7 @@ import { EventEditor } from './EventEditor';
  * No Firestore requests, registration access, external links or saved credentials.
  * Refreshing the page deliberately resets all preview entries.
  */
-export function EventsDesignPreview({ lang }: { lang: Language }) {
+export function EventsDesignPreview({ lang, onExit }: { lang: Language; onExit?: () => void }) {
   const c = eventCopy(lang);
   const [events, setEvents] = useState<DNSEvent[]>([]);
   const [creating, setCreating] = useState(false);
@@ -40,10 +40,17 @@ export function EventsDesignPreview({ lang }: { lang: Language }) {
                 : 'Progetta eventi con iscrizioni e domande personalizzate.'}
             </p>
           </div>
-          {!creating && (
-            <button type="button" className="dns-button" data-variant="primary"
-              onClick={() => setCreating(true)}>{c.create}</button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {onExit && (
+              <button type="button" className="dns-button" data-variant="secondary" onClick={onExit}>
+                {isGerman ? 'Zur echten Verwaltung' : 'Torna alla gestione reale'}
+              </button>
+            )}
+            {!creating && (
+              <button type="button" className="dns-button" data-variant="primary"
+                onClick={() => setCreating(true)}>{c.create}</button>
+            )}
+          </div>
         </div>
         <p role="status" className="text-sm text-dns-muted">
           <strong>{isGerman ? 'Entwurf ohne Anmeldung.' : 'Anteprima senza accesso.'}</strong>{' '}
