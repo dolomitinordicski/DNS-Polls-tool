@@ -30,6 +30,8 @@ import { PollView } from './components/PollView';
 import { PollCalendarView } from './components/PollCalendarView';
 import { ShareModal } from './components/ShareModal';
 import { EventsDashboard } from './events/EventsDashboard';
+import { CoreEventsDashboard } from './events/CoreEventsDashboard';
+import { eventsBridgeEnabled } from './events/bridge';
 import { EventRegistration } from './events/EventRegistration';
 import { Calendar as CalendarIcon } from 'lucide-react';
 
@@ -200,7 +202,9 @@ export default function App() {
         {import.meta.env.VITE_DNS_EVENTS_ENABLED === 'true' && currentView === 'events' && (
           initialPublicTarget.eventId
             ? <EventRegistration eventId={initialPublicTarget.eventId} lang={currentLang} />
-            : !isInviteeLink ? <EventsDashboard lang={currentLang} /> : null
+            : !isInviteeLink ? (eventsBridgeEnabled
+              ? <CoreEventsDashboard lang={currentLang} />
+              : <EventsDashboard lang={currentLang} />) : null
         )}
         {!isInviteeLink && syncStatus === 'restricted' && (
           <div className="dns-shell pt-4" data-dns-reveal>
