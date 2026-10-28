@@ -6,6 +6,25 @@
 - **Stage A:** organizer Events dashboard is enabled on GitHub Pages, behind the existing DNS Google login.
 - **Stage B:** public registration is off until a specific event-registration privacy notice, retention handling, abuse protection and an organizer/guest live test are approved.
 
+## Events interface workshop (temporary)
+Until the DNS Core SSO backend is deployed and tested, unauthenticated
+organizers can open the **Events** tab without a Google login prompt.
+This is a **local-only UI workshop**, not organizer access:
+
+- The Events list and form are available for visual feedback in IT/DE.
+- Creating an event writes only to React component state. No Firestore API,
+  participant data, URL sharing, CSV or registrations are used.
+- Closing the tab/refreshing the page discards all preview drafts. Nothing is
+  published, stored in the browser or sent to Firebase.
+- Already authorized organizers keep the existing secured Events workflow.
+- If the Core SSO bridge is enabled but no Core user is signed in, the same
+  local-only UI workshop appears; it must not provide a bypass to the API.
+- This is separate from the future **Questionari** (general questionnaires)
+  module. Existing date polls (Terminumfragen/Sondaggi date) remain unchanged.
+
+The existing Firestore Rules are unchanged. A UI preview does **not** turn
+registration or privileged event operations into anonymous endpoints.
+
 ## DNS Core → Polls SSO (staged, not yet live)
 The backend for stage-1 event metadata operations has been prepared in
 `dns-shared-data` PR #183, but **its Cloud Function is not deployed** and
