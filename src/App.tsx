@@ -30,13 +30,14 @@ import { PollView } from './components/PollView';
 import { PollCalendarView } from './components/PollCalendarView';
 import { ShareModal } from './components/ShareModal';
 import { EventsDashboard } from './events/EventsDashboard';
+import { QuestionnairesStudio } from './questionnaires/QuestionnairesStudio';
 import { CoreEventsDashboard } from './events/CoreEventsDashboard';
 import { eventsBridgeEnabled } from './events/bridge';
 import { EventRegistration } from './events/EventRegistration';
 import { Calendar as CalendarIcon } from 'lucide-react';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar' | 'events'>('list');
+  const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar' | 'events' | 'questionnaires'>('list');
   const [polls, setPolls] = useState<Poll[]>([]);
   const [hasInitialPolls, setHasInitialPolls] = useState(!isFirebaseConfigured);
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
@@ -174,7 +175,7 @@ export default function App() {
     refreshPollsList();
   };
 
-  const handleNavigate = (view: 'create' | 'list' | 'calendar' | 'events') => {
+  const handleNavigate = (view: 'create' | 'list' | 'calendar' | 'events' | 'questionnaires') => {
     setCurrentView(view);
   };
 
@@ -199,6 +200,9 @@ export default function App() {
       />
 
       <main className="flex-1 pb-14">
+        {!isInviteeLink && currentView === 'questionnaires' && (
+          <QuestionnairesStudio lang={currentLang} />
+        )}
         {import.meta.env.VITE_DNS_EVENTS_ENABLED === 'true' && currentView === 'events' && (
           initialPublicTarget.eventId
             ? <EventRegistration eventId={initialPublicTarget.eventId} lang={currentLang} />

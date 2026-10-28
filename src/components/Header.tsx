@@ -7,8 +7,8 @@ import type { DNSCoreHeaderStatus } from '../lib/dnsCoreHeader';
 import { DNS_POLLS_WEB_LOGO_URL } from '../lib/foundation';
 
 interface HeaderProps {
-  currentView: 'create' | 'list' | 'view' | 'calendar' | 'events';
-  onNavigate: (view: 'create' | 'list' | 'calendar' | 'events') => void;
+  currentView: 'create' | 'list' | 'view' | 'calendar' | 'events' | 'questionnaires';
+  onNavigate: (view: 'create' | 'list' | 'calendar' | 'events' | 'questionnaires') => void;
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
   onQuickShareApp?: () => void;
@@ -107,7 +107,16 @@ export const Header: React.FC<HeaderProps> = ({
               data-dns-press
               className="dns-tab"
             >
-              {t('navMyPolls', currentLang)}
+              {currentLang === 'de' ? 'Terminumfragen' : 'Sondaggi date'}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('questionnaires')}
+              data-section="questionnaires"
+              data-dns-press
+              className="dns-tab"
+            >
+              {currentLang === 'de' ? 'Fragebögen' : 'Questionari'}
             </button>
             <button
               type="button"
@@ -136,7 +145,7 @@ export const Header: React.FC<HeaderProps> = ({
               data-dns-press
               className="dns-tab"
             >
-              {t('navNewPoll', currentLang)}
+              {currentLang === 'de' ? 'Neue Terminumfrage' : 'Nuovo sondaggio date'}
             </button>
 
             <div className="flex-1" />

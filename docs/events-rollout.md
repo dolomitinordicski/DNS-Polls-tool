@@ -6,6 +6,29 @@
 - **Stage A:** organizer Events dashboard is enabled on GitHub Pages, behind the existing DNS Google login.
 - **Stage B:** public registration is off until a specific event-registration privacy notice, retention handling, abuse protection and an organizer/guest live test are approved.
 
+## Questionari / Fragebögen — separate UI module
+
+DNS Polls now has three distinct workflows in navigation:
+
+- **Terminumfragen / Sondaggi date:** existing availability/date polls, unchanged
+- **Fragebögen / Questionari:** general questionnaires with free text,
+  single/multiple choice and yes/no answers; required questions; option
+  editing and reordering; respondent preview
+- **Veranstaltungen / Eventi:** events, supplemental questions and registrations
+
+**Current Questionari status is a client-only UI prototype**, just like the
+unauthenticated Events design workshop. The draft list, form and respondent
+preview live strictly in React state. Reloading the page discards drafts and
+test responses. No questionnaire data is written to Firestore, cookies,
+localStorage, external APIs or the date-polls collection. The "Simula invio"
+action only validates required fields and displays a local success message.
+It is **not** a real submission, sharing, collection or reporting mechanism.
+
+Next gated backend phase: define a separate questionnaire schema, DNS Core
+permissions, organizer scope, retention/privacy, published response model,
+server-side authorization and audit tests before enabling persistent
+questionnaires. Do not reuse legacy anonymous date-poll writes.
+
 ## Events interface workshop (temporary)
 Until the DNS Core SSO backend is deployed and tested, unauthenticated
 organizers can open the **Events** tab without a Google login prompt.
