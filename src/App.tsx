@@ -29,10 +29,12 @@ import { CreatePollForm } from './components/CreatePollForm';
 import { PollView } from './components/PollView';
 import { PollCalendarView } from './components/PollCalendarView';
 import { ShareModal } from './components/ShareModal';
+import { EventsDashboard } from './events/EventsDashboard';
+import { EventRegistration } from './events/EventRegistration';
 import { Calendar as CalendarIcon } from 'lucide-react';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar'>('list');
+  const [currentView, setCurrentView] = useState<'list' | 'create' | 'view' | 'calendar' | 'events'>('list');
   const [polls, setPolls] = useState<Poll[]>([]);
   const [hasInitialPolls, setHasInitialPolls] = useState(!isFirebaseConfigured);
   const [activePoll, setActivePoll] = useState<Poll | null>(null);
@@ -50,11 +52,12 @@ export default function App() {
   const initialPublicTarget = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     const pollId = params.get('poll') || params.get('p');
+    const eventId = params.get('event');
     const hashPoll = decodePollFromHash();
-    return { pollId, hashPoll };
+    return { pollId, hashPoll, eventId };
   }, []);
 
-  const isInviteeLink = Boolean(initialPublicTarget.pollId || initialPublicTarget.hashPoll);
+  const isInviteeLink = Boolean(initialPublicTarget.pollId || initialPublicTarget.hashPoll || initialPublicTarget.eventId);
 
   const missingLegacyPollCount = useMemo(
     () =>
@@ -97,6 +100,10 @@ export default function App() {
   useEffect(() => {
     if (!isInviteeLink) return;
 
+    if (initialPublicTarget.eventId) {
+      setCurrentView('events');
+      return;
+    }
     setCurrentView('view');
 
     if (initialPublicTarget.pollId) {
@@ -164,7 +171,7 @@ export default function App() {
     refreshPollsList();
   };
 
-  const handleNavigate = (view: 'create' | 'list' | 'calendar') => {
+  const handleNavigate = (view: 'create' | 'list' | 'calendar' | 'events') => {
     setCurrentView(view);
   };
 
@@ -184,10 +191,16 @@ export default function App() {
         coreStatus={coreStatus}
         currentLang={currentLang}
         onLanguageChange={setDNSPollsLanguage}
-        isInviteeMode={isInviteeLink && currentView === 'view'}
+        isInviteeMode={isInviteeLink}
+        isEventInvitee={Boolean(initialPublicTarget.eventId)}
       />
 
       <main className="flex-1 pb-14">
+        {currentView === 'events' && (
+          initialPublicTarget.eventId
+            ? <EventRegistration eventId={initialPublicTarget.eventId} lang={currentLang} />
+            : !isInviteeLink ? <EventsDashboard lang={currentLang} /> : null
+        )}
         {!isInviteeLink && syncStatus === 'restricted' && (
           <div className="dns-shell pt-4" data-dns-reveal>
             <div
