@@ -8,9 +8,10 @@ import {
   onAuthStateChanged,
   signInWithPopup,
   signOut,
+  GoogleAuthProvider,
   type User,
 } from 'firebase/auth';
-import { auth, db, privateDataAuthProvider } from '../lib/firebase';
+import { auth, db } from '../lib/firebase';
 import {
   POLLS_COLLECTION,
   PRIVATE_CONTACTS_COLLECTION,
@@ -61,15 +62,21 @@ export function subscribePrivateRecipientAuth(
   });
 }
 
-export async function signInPrivateRecipientSync(): Promise<User> {
+export async function signInPrivateRecipientSync(accountHint = ''): Promise<User> {
   if (!auth || !db) {
     throw new Error('Firebase private data sync is unavailable.');
   }
 
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({
+    prompt: 'select_account',
+    ...(accountHint.trim() ? { login_hint: accountHint.trim() } : {}),
+  });
+
   let result;
 
   try {
-    result = await signInWithPopup(auth, privateDataAuthProvider);
+    result = await signInWithPopup(auth, provider);
   } catch (error) {
     const code = (error as { code?: string })?.code || '';
 
@@ -81,17 +88,24 @@ export async function signInPrivateRecipientSync(): Promise<User> {
 
     if (code === 'auth/unauthorized-domain') {
       throw new Error(
-        'dolomitinordicski.github.io non è ancora autorizzato in Firebase Authentication.',
+        'dolomitinordicski.github.io non è autorizzato in Firebase Authentication del progetto dns-polls.',
       );
+    }
+    if (code === 'auth/popup-blocked') {
+      throw new Error('Il browser ha bloccato la finestra Google. Abilita i popup per questo sito.');
+    }
+    if (code === 'auth/popup-closed-by-user') {
+      throw new Error('Finestra di accesso Google chiusa senza completare la selezione.');
     }
 
     throw error;
   }
 
   if (!isAuthorizedPrivateDataUser(result.user)) {
+    const selectedEmail = result.user.email || '(email non disponibile)';
     await signOut(auth);
     throw new Error(
-      `Account non autorizzato. Usa ${ADMIN_EMAIL}.`,
+      `Google ha usato ${selectedEmail}. DNS Polls autorizza soltanto ${ADMIN_EMAIL}.`,
     );
   }
 

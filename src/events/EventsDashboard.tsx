@@ -19,9 +19,14 @@ export function EventsDashboard({ lang }: Props) {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [accountHint, setAccountHint] = useState('');
+  const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  useEffect(() => subscribePrivateRecipientAuth(state => setAuth(state)), []);
+  useEffect(() => subscribePrivateRecipientAuth((state, user) => {
+    setAuth(state);
+    setSignedInEmail(user?.email || null);
+  }), []);
 
   useEffect(() => {
     if (auth !== 'authorized') return;
@@ -35,7 +40,7 @@ export function EventsDashboard({ lang }: Props) {
 
   const login = async () => {
     setError('');
-    try { await signInPrivateRecipientSync(); }
+    try { await signInPrivateRecipientSync(accountHint); }
     catch (e) { setError(e instanceof Error ? e.message : c.failed); }
   };
 
@@ -64,6 +69,14 @@ export function EventsDashboard({ lang }: Props) {
       {auth !== 'authorized' ? (
         <section className="dns-card space-y-4 p-5">
           <p className="text-sm text-dns-muted">{c.loginHint}</p>
+          {signedInEmail && <p className="text-sm">{c.currentAccount}: {signedInEmail}</p>}
+          <label className="block space-y-1">
+            <span className="dns-kicker">{c.accountHint}</span>
+            <input type="email" autoComplete="email" className="dns-input w-full"
+              placeholder="management@dolomitinordicski.com"
+              value={accountHint} onChange={e => setAccountHint(e.target.value.trim())} />
+          </label>
+          <p className="text-xs text-dns-muted">{c.accountHelp}</p>
           <button type="button" className="dns-button" data-variant="primary"
             onClick={() => void login()}>{c.login}</button>
         </section>
