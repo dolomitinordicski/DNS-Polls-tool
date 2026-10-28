@@ -94,6 +94,52 @@ service cloud.firestore {
       }
     }
 
+    // Events are independent of legacy date polls. Personal registrations
+    // are never publicly readable, including by the registrant.
+    match /events/{eventId} {
+      allow get: if isAdmin() || resource.data.status in ['open', 'closed'];
+      allow list: if isAdmin();
+
+      allow create: if isAdmin()
+        && request.resource.data.id == eventId
+        && request.resource.data.schemaVersion == 1
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 160
+        && request.resource.data.questions is list
+        && request.resource.data.questions.size() <= 8
+        && request.resource.data.status == 'open';
+      allow update, delete: if isAdmin();
+
+      match /registrations/{registrationId} {
+        allow read, delete: if isAdmin();
+        allow update: if false;
+        allow create: if
+          get(/databases/$(database)/documents/events/$(eventId)).data.status == 'open'
+          && request.resource.data.keys().hasOnly([
+            'id', 'firstName', 'lastName', 'email', 'answers', 'createdAt'
+          ])
+          && request.resource.data.keys().hasAll([
+            'id', 'firstName', 'lastName', 'email', 'answers', 'createdAt'
+          ])
+          && request.resource.data.id == registrationId
+          && registrationId.size() >= 20
+          && registrationId.size() <= 60
+          && request.resource.data.firstName is string
+          && request.resource.data.firstName.size() > 0
+          && request.resource.data.firstName.size() <= 80
+          && request.resource.data.lastName is string
+          && request.resource.data.lastName.size() > 0
+          && request.resource.data.lastName.size() <= 80
+          && request.resource.data.email is string
+          && request.resource.data.email.size() <= 254
+          && request.resource.data.email.matches('^[^@ ]+@[^@ ]+\\.[^@ ]+$')
+          && request.resource.data.answers is map
+          && request.resource.data.answers.size() <= 8
+          && request.resource.data.createdAt is string;
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
