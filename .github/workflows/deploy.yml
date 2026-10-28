@@ -44,6 +44,7 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
           VITE_DNS_EVENTS_ENABLED: ${{ vars.VITE_DNS_EVENTS_ENABLED || 'true' }}
           VITE_DNS_EVENT_REGISTRATION_ENABLED: ${{ vars.VITE_DNS_EVENT_REGISTRATION_ENABLED || 'false' }}
+          VITE_DNS_POLLS_BRIDGE_URL: ${{ vars.VITE_DNS_POLLS_BRIDGE_URL || '' }}
         run: npm run build
 
       - name: Prepare SPA 404 fallback
