@@ -4,7 +4,7 @@ import { questionnaireCopy } from './copy';
 import {
   type QuestionnaireAnswer, type QuestionnaireDraft, type QuestionnaireQuestion,
   QUESTIONNAIRE_MAX_OPTIONS, QUESTIONNAIRE_MAX_QUESTIONS,
-  newQuestion, newQuestionnaire, validateQuestionnaire,
+  duplicateQuestionnaire, newQuestion, newQuestionnaire, validateQuestionnaire,
 } from './model';
 
 type Mode = 'list' | 'edit' | 'preview';
@@ -19,6 +19,7 @@ export function QuestionnairesStudio({ lang }: { lang: Language }) {
   const [answers, setAnswers] = useState<Record<string, QuestionnaireAnswer>>({});
   const [error, setError] = useState('');
   const [completed, setCompleted] = useState(false);
+  const [previewFromEditor, setPreviewFromEditor] = useState(false);
 
   const startNew = () => {
     setEditing(newQuestionnaire(crypto.randomUUID()));
@@ -68,12 +69,40 @@ export function QuestionnairesStudio({ lang }: { lang: Language }) {
     setError('');
     setMode('list');
   };
-  const showPreview = (draft: QuestionnaireDraft) => {
-    setSelected(draft);
+  const showPreview = (draft: QuestionnaireDraft, fromEditor = false) => {
+    setSelected({
+      ...draft,
+      questions: draft.questions.map(q => ({ ...q, options: [...q.options] })),
+    });
+    setPreviewFromEditor(fromEditor);
     setAnswers({});
     setCompleted(false);
     setError('');
     setMode('preview');
+  };
+  const previewEditingDraft = () => {
+    if (!editing) return;
+    if (validateQuestionnaire(editing).length) {
+      setError(c.invalid);
+      return;
+    }
+    showPreview(editing, true);
+  };
+  const duplicateDraft = (draft: QuestionnaireDraft) => {
+    const copy = duplicateQuestionnaire(draft, () => crypto.randomUUID(), c.copySuffix);
+    setDrafts(current => [copy, ...current]);
+  };
+  const returnFromPreview = () => {
+    if (!previewFromEditor || !editing) {
+      returnToList();
+      return;
+    }
+    setMode('edit');
+    setSelected(null);
+    setAnswers({});
+    setCompleted(false);
+    setError('');
+    setPreviewFromEditor(false);
   };
   const setAnswer = (id: string, answer: QuestionnaireAnswer) => {
     setAnswers(current => ({ ...current, [id]: answer }));
@@ -103,6 +132,7 @@ export function QuestionnairesStudio({ lang }: { lang: Language }) {
     setAnswers({});
     setCompleted(false);
     setError('');
+    setPreviewFromEditor(false);
     setMode('list');
   };
 
@@ -118,7 +148,8 @@ export function QuestionnairesStudio({ lang }: { lang: Language }) {
           {mode === 'list' ? (
             <button type="button" className="dns-button" data-variant="primary" onClick={startNew}>{c.new}</button>
           ) : (
-            <button type="button" className="dns-button" data-variant="secondary" onClick={returnToList}>{c.back}</button>
+            <button type="button" className="dns-button" data-variant="secondary" onClick={mode === 'preview' ? returnFromPreview : returnToList}>
+              {mode === 'preview' && previewFromEditor ? c.backEdit : c.back}</button>
           )}
         </div>
         <p role="status" className="border-t border-dns-mid/10 pt-3 text-sm text-dns-muted">{c.safety}</p>
@@ -149,6 +180,8 @@ export function QuestionnairesStudio({ lang }: { lang: Language }) {
                     onClick={() => showPreview(draft)}>{c.preview}</button>
                   <button type="button" className="dns-button" data-variant="secondary"
                     onClick={() => editDraft(draft)}>{c.edit}</button>
+                  <button type="button" className="dns-button" data-variant="secondary"
+                    onClick={() => duplicateDraft(draft)}>{c.duplicate}</button>
                   <button type="button" className="dns-button" data-variant="secondary"
                     onClick={() => setDrafts(current => current.filter(item => item.id !== draft.id))}>
                     {c.delete}
@@ -270,6 +303,8 @@ export function QuestionnairesStudio({ lang }: { lang: Language }) {
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <div className="flex flex-wrap justify-end gap-3">
             <button type="button" className="dns-button" data-variant="secondary" onClick={returnToList}>{c.cancel}</button>
+            <button type="button" className="dns-button" data-variant="secondary"
+              onClick={previewEditingDraft}>{c.previewUnsaved}</button>
             <button type="submit" className="dns-button" data-variant="primary">{c.save}</button>
           </div>
         </form>
@@ -326,7 +361,10 @@ export function QuestionnairesStudio({ lang }: { lang: Language }) {
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           {completed && <p role="status" className="text-sm font-semibold text-dns-deep">{c.success}</p>}
           <div className="flex flex-wrap justify-end gap-3">
-            <button type="button" className="dns-button" data-variant="secondary" onClick={returnToList}>{c.back}</button>
+            <button type="button" className="dns-button" data-variant="secondary"
+              onClick={returnFromPreview}>
+              {previewFromEditor ? c.backEdit : c.back}
+            </button>
             <button type="submit" className="dns-button" data-variant="primary">{c.simulate}</button>
           </div>
         </form>
