@@ -93,9 +93,12 @@ export function EventRegistration({ lang, eventId }: Props) {
                 {q.type === 'checkbox' ? (
                   <select className="dns-input w-full" required={q.required}
                     value={typeof answers[q.id] === 'boolean' ? String(answers[q.id]) : ''}
-                    onChange={e => setAnswers(a => ({
-                      ...a, [q.id]: e.target.value === 'true',
-                    }))}>
+                    onChange={e => setAnswers(a => {
+                      const next = { ...a };
+                      if (e.target.value === '') delete next[q.id];
+                      else next[q.id] = e.target.value === 'true';
+                      return next;
+                    })}>
                     <option value="">—</option>
                     <option value="true">{lang === 'de' ? 'Ja' : 'Sì'}</option>
                     <option value="false">{lang === 'de' ? 'Nein' : 'No'}</option>
