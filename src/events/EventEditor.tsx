@@ -8,9 +8,12 @@ interface Props {
   lang: Language;
   onCreated: (event: DNSEvent) => void;
   onCancel: () => void;
+  /** Preview mode supplies an in-memory writer. Never grant Firestore access here. */
+  onSave?: (data: Omit<DNSEvent, 'id' | 'createdAt' | 'schemaVersion'>) => Promise<DNSEvent>;
+  saveLabel?: string;
 }
 
-export function EventEditor({ lang, onCreated, onCancel }: Props) {
+export function EventEditor({ lang, onCreated, onCancel, onSave, saveLabel }: Props) {
   const c = eventCopy(lang);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -33,7 +36,7 @@ export function EventEditor({ lang, onCreated, onCancel }: Props) {
     setBusy(true);
     setError('');
     try {
-      const event = await createEvent({
+      const event = await (onSave ?? createEvent)({
         title: title.trim(), description: description.trim(), location: location.trim(),
         startsAt, status: 'open',
         questions: questions.map(q => ({ ...q, label: q.label.trim() })),
@@ -127,7 +130,7 @@ export function EventEditor({ lang, onCreated, onCancel }: Props) {
           {c.back}
         </button>
         <button type="submit" className="dns-button" data-variant="primary" disabled={busy}>
-          {busy ? c.loading : c.save}
+          {busy ? c.loading : (saveLabel ?? c.save)}
         </button>
       </div>
     </form>
