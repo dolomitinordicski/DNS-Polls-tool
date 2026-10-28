@@ -91,7 +91,7 @@ export function EventEditor({ lang, onCreated, onCancel }: Props) {
               <select className="dns-input w-full" value={q.type}
                 onChange={e => changeQuestion(q.id, {
                   type: e.target.value as EventQuestionType,
-                  options: e.target.value === 'select' ? ['Sì', 'No'] : undefined,
+                  options: e.target.value === 'select' ? [lang === 'de' ? 'Ja' : 'Sì', lang === 'de' ? 'Nein' : 'No'] : undefined,
                 })}>
                 <option value="text">{c.text}</option>
                 <option value="select">{c.select}</option>
@@ -101,8 +101,8 @@ export function EventEditor({ lang, onCreated, onCancel }: Props) {
             {q.type === 'select' && (
               <label className="space-y-1 sm:col-span-2">
                 <span className="dns-kicker">{c.options}</span>
-                <input className="dns-input w-full" value={(q.options || []).join(', ')}
-                  onChange={e => changeQuestion(q.id, {
+                <input className="dns-input w-full" maxLength={600} defaultValue={(q.options || []).join(', ')}
+                  onBlur={e => changeQuestion(q.id, {
                     options: e.target.value.split(',').map(v => v.trim()).filter(Boolean).slice(0, 10),
                   })} />
               </label>
