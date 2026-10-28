@@ -3,6 +3,7 @@ import type { Language } from '../utils/i18n';
 const messages = {
   de: {
     events: 'Veranstaltungen', create: 'Veranstaltung erstellen',
+    preview: 'Organisator-Vorschau: öffentliche Anmeldungen sind noch nicht aktiv.',
     title: 'Titel', description: 'Beschreibung', location: 'Ort',
     date: 'Datum und Uhrzeit', register: 'Jetzt anmelden',
     firstName: 'Vorname', lastName: 'Nachname', email: 'E-Mail',
@@ -23,6 +24,7 @@ const messages = {
   },
   it: {
     events: 'Eventi', create: 'Crea evento',
+    preview: 'Anteprima organizzatore: le iscrizioni pubbliche non sono ancora attive.',
     title: 'Titolo', description: 'Descrizione', location: 'Luogo',
     date: 'Data e ora', register: 'Iscriviti',
     firstName: 'Nome', lastName: 'Cognome', email: 'Email',
