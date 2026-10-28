@@ -7,13 +7,14 @@ import type { DNSCoreHeaderStatus } from '../lib/dnsCoreHeader';
 import { DNS_POLLS_WEB_LOGO_URL } from '../lib/foundation';
 
 interface HeaderProps {
-  currentView: 'create' | 'list' | 'view' | 'calendar';
-  onNavigate: (view: 'create' | 'list' | 'calendar') => void;
+  currentView: 'create' | 'list' | 'view' | 'calendar' | 'events';
+  onNavigate: (view: 'create' | 'list' | 'calendar' | 'events') => void;
   currentLang: Language;
   onLanguageChange: (lang: Language) => void;
   onQuickShareApp?: () => void;
   coreStatus: DNSCoreHeaderStatus;
   isInviteeMode?: boolean;
+  isEventInvitee?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,15 +25,16 @@ export const Header: React.FC<HeaderProps> = ({
   onQuickShareApp,
   coreStatus,
   isInviteeMode = false,
+  isEventInvitee = false,
 }) => {
   useEffect(() => {
     setDNSToolChromeActiveSection(currentView);
   }, [currentView, isInviteeMode]);
 
   const coreHeader = formatDNSCoreHeaderStatus(coreStatus, currentLang);
-  const subtitle = isInviteeMode
-    ? t('inviteeHeaderTag', currentLang)
-    : t('tagline', currentLang);
+  const subtitle = isEventInvitee
+    ? (currentLang === 'de' ? 'Veranstaltungsanmeldung' : 'Iscrizione evento')
+    : isInviteeMode ? t('inviteeHeaderTag', currentLang) : t('tagline', currentLang);
 
   return (
     <>
@@ -115,6 +117,15 @@ export const Header: React.FC<HeaderProps> = ({
               className="dns-tab"
             >
               {t('navCalendar', currentLang)}
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('events')}
+              data-section="events"
+              data-dns-press
+              className="dns-tab"
+            >
+              {currentLang === 'de' ? 'Veranstaltungen' : 'Eventi'}
             </button>
             <button
               type="button"
