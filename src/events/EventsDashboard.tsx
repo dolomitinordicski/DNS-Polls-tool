@@ -12,6 +12,7 @@ interface Props { lang: Language; }
 
 export function EventsDashboard({ lang }: Props) {
   const c = eventCopy(lang);
+  const canShare = import.meta.env.VITE_DNS_EVENT_REGISTRATION_ENABLED === 'true';
   const [auth, setAuth] = useState<PrivateRecipientAuthState>('signed-out');
   const [events, setEvents] = useState<DNSEvent[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -57,6 +58,9 @@ export function EventsDashboard({ lang }: Props) {
             onClick={() => setCreating(true)}>{c.create}</button>
         )}
       </section>
+      {!canShare && auth === 'authorized' && (
+        <p role="status" className="text-sm text-dns-muted">{c.preview}</p>
+      )}
       {auth !== 'authorized' ? (
         <section className="dns-card space-y-4 p-5">
           <p className="text-sm text-dns-muted">{c.loginHint}</p>
@@ -82,10 +86,12 @@ export function EventsDashboard({ lang }: Props) {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" className="dns-button" data-variant="secondary"
-                      onClick={() => void copyLink(event)}>
-                      {copied === event.id ? c.copied : c.copy}
-                    </button>
+                    {canShare && (
+                      <button type="button" className="dns-button" data-variant="secondary"
+                        onClick={() => void copyLink(event)}>
+                        {copied === event.id ? c.copied : c.copy}
+                      </button>
+                    )}
                     <button type="button" className="dns-button" data-variant="secondary"
                       onClick={() => setSelected(current => current === event.id ? null : event.id)}>
                       {c.participants}
