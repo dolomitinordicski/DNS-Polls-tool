@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import type { Language } from '../utils/i18n';
 import { questionnaireCopy } from './copy';
 import {
@@ -46,7 +46,7 @@ export function QuestionnairesStudio({ lang }: { lang: Language }) {
       return { ...current, questions: next };
     });
   };
-  const saveDraft = (event: React.FormEvent<HTMLFormElement>) => {
+  const saveDraft = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editing) return;
     if (validateQuestionnaire(editing).length) {
@@ -80,7 +80,7 @@ export function QuestionnairesStudio({ lang }: { lang: Language }) {
     setCompleted(false);
     setError('');
   };
-  const submitPreview = (event: React.FormEvent<HTMLFormElement>) => {
+  const submitPreview = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selected) return;
     const missingRequired = selected.questions.some(q => {
