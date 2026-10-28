@@ -13,6 +13,7 @@ export function CoreEventsDashboard({ lang }: { lang: Language }) {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [events, setEvents] = useState<DNSEvent[]>([]);
   const [creating, setCreating] = useState(false);
+  const [designPreview, setDesignPreview] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -29,7 +30,10 @@ export function CoreEventsDashboard({ lang }: { lang: Language }) {
 
   // Same local-only workshop when the DNS Core SSO bridge is enabled but
   // the user has not signed in. No token or Firestore read is attempted.
-  if (!signedIn) return <EventsDesignPreview lang={lang} />;
+  if (!signedIn || designPreview) return (
+    <EventsDesignPreview lang={lang}
+      onExit={signedIn ? () => setDesignPreview(false) : undefined} />
+  );
 
   return (
     <div className="dns-shell space-y-5 py-6">
@@ -38,10 +42,16 @@ export function CoreEventsDashboard({ lang }: { lang: Language }) {
           <div className="dns-kicker">Dolomiti NordicSki · DNS Core</div>
           <h1 className="text-2xl font-semibold text-dns-deep">{c.events}</h1>
         </div>
-        {signedIn && !error && !creating && (
-          <button type="button" className="dns-button" data-variant="primary"
-            onClick={() => setCreating(true)}>{c.create}</button>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="dns-button" data-variant="secondary"
+            onClick={() => setDesignPreview(true)}>
+            {lang === 'de' ? 'Oberfläche testen' : 'Anteprima interfaccia'}
+          </button>
+          {signedIn && !error && !creating && (
+            <button type="button" className="dns-button" data-variant="primary"
+              onClick={() => setCreating(true)}>{c.create}</button>
+          )}
+        </div>
       </section>
       {signedIn && creating ? (
         <EventEditor lang={lang} onCreated={event => {
