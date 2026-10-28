@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import type { Language } from '../utils/i18n';
-import { subscribePrivateRecipientAuth, signInPrivateRecipientSync } from '../data/privateRecipientSync';
+import { subscribePrivateRecipientAuth } from '../data/privateRecipientSync';
 import type { PrivateRecipientAuthState } from '../data/privateRecipientSync';
 import { eventCopy } from './copy';
 import { eventUrl, listEvents } from './repository';
 import type { DNSEvent } from './types';
 import { EventEditor } from './EventEditor';
 import { EventRegistrations } from './EventRegistrations';
+import { EventsDesignPreview } from './EventsDesignPreview';
 
 interface Props { lang: Language; }
 
@@ -19,14 +20,9 @@ export function EventsDashboard({ lang }: Props) {
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [accountHint, setAccountHint] = useState('');
-  const [signedInEmail, setSignedInEmail] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
 
-  useEffect(() => subscribePrivateRecipientAuth((state, user) => {
-    setAuth(state);
-    setSignedInEmail(user?.email || null);
-  }), []);
+  useEffect(() => subscribePrivateRecipientAuth(state => setAuth(state)), []);
 
   useEffect(() => {
     if (auth !== 'authorized') return;
@@ -38,18 +34,15 @@ export function EventsDashboard({ lang }: Props) {
     return () => { active = false; };
   }, [auth, c.failed]);
 
-  const login = async () => {
-    setError('');
-    try { await signInPrivateRecipientSync(accountHint); }
-    catch (e) { setError(e instanceof Error ? e.message : c.failed); }
-  };
-
   const copyLink = async (event: DNSEvent) => {
     try {
       await navigator.clipboard.writeText(eventUrl(event.id));
       setCopied(event.id);
     } catch { setError(c.failed); }
   };
+
+  // Unauthenticated design work never calls the Firestore Events repository.
+  if (auth !== 'authorized') return <EventsDesignPreview lang={lang} />;
 
   return (
     <div className="dns-shell space-y-5 py-6">
@@ -66,21 +59,7 @@ export function EventsDashboard({ lang }: Props) {
       {!canShare && auth === 'authorized' && (
         <p role="status" className="text-sm text-dns-muted">{c.preview}</p>
       )}
-      {auth !== 'authorized' ? (
-        <section className="dns-card space-y-4 p-5">
-          <p className="text-sm text-dns-muted">{c.loginHint}</p>
-          {signedInEmail && <p className="text-sm">{c.currentAccount}: {signedInEmail}</p>}
-          <label className="block space-y-1">
-            <span className="dns-kicker">{c.accountHint}</span>
-            <input type="email" autoComplete="email" className="dns-input w-full"
-              placeholder="management@dolomitinordicski.com"
-              value={accountHint} onChange={e => setAccountHint(e.target.value.trim())} />
-          </label>
-          <p className="text-xs text-dns-muted">{c.accountHelp}</p>
-          <button type="button" className="dns-button" data-variant="primary"
-            onClick={() => void login()}>{c.login}</button>
-        </section>
-      ) : creating ? (
+      {creating ? (
         <EventEditor lang={lang} onCreated={event => {
           setEvents(current => [event, ...current]);
           setCreating(false);
