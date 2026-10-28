@@ -52,7 +52,8 @@ export default function App() {
   const initialPublicTarget = useMemo(() => {
     const params = new URLSearchParams(window.location.search);
     const pollId = params.get('poll') || params.get('p');
-    const eventId = params.get('event');
+    const eventId = import.meta.env.VITE_DNS_EVENTS_ENABLED === 'true'
+      ? params.get('event') : null;
     const hashPoll = decodePollFromHash();
     return { pollId, hashPoll, eventId };
   }, []);
@@ -196,7 +197,7 @@ export default function App() {
       />
 
       <main className="flex-1 pb-14">
-        {currentView === 'events' && (
+        {import.meta.env.VITE_DNS_EVENTS_ENABLED === 'true' && currentView === 'events' && (
           initialPublicTarget.eventId
             ? <EventRegistration eventId={initialPublicTarget.eventId} lang={currentLang} />
             : !isInviteeLink ? <EventsDashboard lang={currentLang} /> : null
