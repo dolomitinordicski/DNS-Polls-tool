@@ -118,6 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               {t('navCalendar', currentLang)}
             </button>
+            {import.meta.env.VITE_DNS_EVENTS_ENABLED === 'true' && (
             <button
               type="button"
               onClick={() => onNavigate('events')}
@@ -127,6 +128,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               {currentLang === 'de' ? 'Veranstaltungen' : 'Eventi'}
             </button>
+            )}
             <button
               type="button"
               onClick={() => onNavigate('create')}
