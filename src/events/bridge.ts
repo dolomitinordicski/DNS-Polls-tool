@@ -1,22 +1,19 @@
 import { dnsCoreAuth } from '../lib/dnsCore';
 import type { DNSEvent } from './types';
+import { approvedDnsPollsBridgeUrl } from './bridgeEndpoint';
 
 export const eventsBridgeEnabled = Boolean(import.meta.env.VITE_DNS_POLLS_BRIDGE_URL?.trim());
 
 function bridgeUrl(): string {
   const base = import.meta.env.VITE_DNS_POLLS_BRIDGE_URL?.trim() || '';
-  const target = new URL(base);
-  if (target.protocol !== 'https:' && target.hostname !== 'localhost') {
-    throw new Error('DNS_POLLS_BRIDGE_INVALID_URL');
-  }
-  return target.toString();
+  return approvedDnsPollsBridgeUrl(base);
 }
 
 async function bridgeRequest<T>(action: string, event?: unknown): Promise<T> {
   const user = dnsCoreAuth.currentUser;
   if (!user) throw new Error('DNS_CORE_LOGIN_REQUIRED');
   const response = await fetch(bridgeUrl(), {
-    method: 'POST', mode: 'cors', cache: 'no-store', credentials: 'omit',
+    method: 'POST', mode: 'cors', cache: 'no-store', credentials: 'omit', redirect: 'error',
     headers: {
       'Content-Type': 'application/json',
       Authorization: 'Bearer ' + await user.getIdToken(),

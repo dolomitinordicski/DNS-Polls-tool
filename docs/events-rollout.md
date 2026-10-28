@@ -23,8 +23,14 @@ The optional frontend adapter:
 `VITE_DNS_POLLS_BRIDGE_URL` **defaults to unset (off)**. While unset, the
 previous Polls organizer flow stays unchanged. Set this variable **only after**
 authorized backend deployment and manual end-to-end sign-in/permissions tests.
-A configured URL must be the reviewed HTTPS bridge endpoint, never a user
-supplied URL. Unsetting and redeploying rolls back to the old route.
+A configured URL must be the **canonical DNS Core Firebase Functions URL**,
+for example `https://europe-west8-dns-core.cloudfunctions.net/pollsBridgeApi`.
+The frontend rejects Cloud Run `a.run.app` URLs, non-DNS-Core projects,
+unexpected paths, credentials, query parameters and redirects **before**
+obtaining/transmitting a DNS Core ID token. Confirm the official
+`cloudfunctions.net` URL from the deployed function; do not copy the
+`serviceConfig.uri` Cloud Run URL into this variable. Unsetting and
+redeploying rolls back to the old route.
 
 ## Launch flags
 The GitHub Pages build uses these separately controlled settings:
