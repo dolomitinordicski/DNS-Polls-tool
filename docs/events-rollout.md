@@ -1,30 +1,43 @@
-# DNS Polls — Events rollout
+# DNS Polls — controlled Events launch
 
-Events and Forms are **off by default**. Existing date polls remain available.
+Events and Forms remain **disabled by default**. Existing date polls are unaffected.
+The canonical database is Firebase **dns-polls**, not dns-core.
 
-## Verified before production
+## 1 · One-time credential (authorized project administrator)
 
-- GitHub Actions TypeScript and Vite build: green.
-- Firestore Emulator security tests: green, including guest writes and admin-only reads.
-- Review privacy notice, registration data retention, duplicate/spam handling and real organizer authentication before public launch.
+Create a Google Cloud service account with the minimum permission needed to
+publish Firestore security rules **only in dns-polls**. Store its JSON credential
+as an encrypted GitHub Actions repository secret:
+`FIREBASE_SERVICE_ACCOUNT_DNS_POLLS`. Never commit a credential or use a personal login.
 
-## Publish new Firestore rules
+## 2 · Deploy and verify security rules
 
-After merging the Events PR, an authorized Firebase operator deploys **only** the reviewed rules to the existing `dns-polls` project:
+After merging the release-workflow PR:
 
-```sh
-npx firebase-tools@14.12.0 deploy --only firestore:rules --project dns-polls
-```
+1. Open GitHub **Actions → Deploy DNS Polls Firestore rules (manual)**.
+2. Select branch **main**, click **Run workflow**, and type `dns-polls`.
+3. The workflow executes Firebase Emulator security tests **before** deployment.
+4. Confirm the final `Deploy rules only to dns-polls` step succeeds.
 
-This must be run from the repository root on the reviewed `main` commit. Do **not** deploy to `dns-core`. Public registrants must never receive read access to `events/{id}/registrations`.
+The existing date-poll rules are preserved. This workflow never changes DNS Core,
+deletes Firestore records or deploys Hosting.
 
-## Enable events when ready
+## 3 · Launch only after real-user checks
 
-In GitHub repository **Settings → Secrets and variables → Actions → Variables**,
-create `VITE_DNS_EVENTS_ENABLED` with value `true`. Re-run the GitHub Pages deploy from `main`.
+Before enabling Events, verify DNS organizer login, event creation, an anonymous
+registration, organizer-only CSV access, and anonymous read denial. Review the
+privacy notice, data retention and abuse/duplicate-submission controls; emulator
+tests alone do not prove these operational requirements.
 
-Verify: admin login, event creation, public invitation link, one registration, admin CSV export, denial of guest registration list access. Roll back by setting the variable to `false` and redeploying.
+When approved, set the GitHub Actions repository variable
+`VITE_DNS_EVENTS_ENABLED=true`, then deploy GitHub Pages from `main`.
+Check the live site with a test event and **non-personal test data**.
 
-## Data ownership
+Rollback: set the variable to `false` and redeploy Pages. This hides Events
+but does **not** remove stored registrations or change database permissions.
 
-The source of truth remains Firestore in the `dns-polls` project. DNS Hub, Partner Portal and Analytics will later consume permissioned public summaries or aggregates — **not** raw emails and free-text answers.
+## 4 · Ecosystem data
+
+Original event and registration data remain in dns-polls. DNS Hub, Partner Portal,
+and Analytics will receive only authorized event summaries or aggregates through
+versioned Data Contracts; never public participant names or email addresses.
