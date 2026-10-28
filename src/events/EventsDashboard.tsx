@@ -18,6 +18,7 @@ export function EventsDashboard({ lang }: Props) {
   const [events, setEvents] = useState<DNSEvent[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [designPreview, setDesignPreview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
@@ -42,7 +43,10 @@ export function EventsDashboard({ lang }: Props) {
   };
 
   // Unauthenticated design work never calls the Firestore Events repository.
-  if (auth !== 'authorized') return <EventsDesignPreview lang={lang} />;
+  if (auth !== 'authorized' || designPreview) return (
+    <EventsDesignPreview lang={lang}
+      onExit={auth === 'authorized' ? () => setDesignPreview(false) : undefined} />
+  );
 
   return (
     <div className="dns-shell space-y-5 py-6">
@@ -51,10 +55,14 @@ export function EventsDashboard({ lang }: Props) {
           <div className="dns-kicker">Dolomiti NordicSki</div>
           <h1 className="text-2xl font-semibold text-dns-deep">{c.events}</h1>
         </div>
-        {auth === 'authorized' && (
+        <div className="flex flex-wrap gap-2">
+          <button className="dns-button" data-variant="secondary" type="button"
+            onClick={() => setDesignPreview(true)}>
+            {lang === 'de' ? 'Oberfläche testen' : 'Anteprima interfaccia'}
+          </button>
           <button className="dns-button" data-variant="primary" type="button"
             onClick={() => setCreating(true)}>{c.create}</button>
-        )}
+        </div>
       </section>
       {!canShare && auth === 'authorized' && (
         <p role="status" className="text-sm text-dns-muted">{c.preview}</p>
