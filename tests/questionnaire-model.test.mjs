@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  newQuestionnaire, validateQuestionnaire,
+  duplicateQuestionnaire, newQuestionnaire, validateQuestionnaire,
   QUESTIONNAIRE_MAX_QUESTIONS,
 } from '../src/questionnaires/model.ts';
 
@@ -52,6 +52,27 @@ describe('Questionari local-only draft contract', () => {
     draft.description = 'x'.repeat(2001);
     draft.questions[0].options = ['Only one'];
     assert.deepEqual(validateQuestionnaire(draft).sort(), ['description', 'options', 'title']);
+  });
+
+  it('duplicates a draft without reusing question identities or option arrays', () => {
+    const source = makeValid();
+    const newIds = ['copy-id', 'copy-q1', 'copy-q2'];
+    const copy = duplicateQuestionnaire(source, () => newIds.shift(), 'copia');
+    assert.equal(copy.title, 'Questionario di esempio (copia)');
+    assert.equal(copy.id, 'copy-id');
+    assert.deepEqual(copy.questions.map(q => q.id), ['copy-q1', 'copy-q2']);
+    assert.deepEqual(validateQuestionnaire(copy), []);
+    copy.questions[0].options[0] = 'Nuova opzione';
+    copy.questions[0].label = 'Una nuova domanda';
+    assert.equal(source.questions[0].options[0], 'Ahrntal');
+    assert.equal(source.questions[0].label, 'Quale area?');
+  });
+
+  it('keeps duplicated titles within the max length', () => {
+    const source = makeValid();
+    source.title = 'x'.repeat(160);
+    const copy = duplicateQuestionnaire(source, () => 'distinct-id', 'Kopie');
+    assert.equal(copy.title.length, 160);
   });
 
   it('allows free text, yes/no and multiple-choice types', () => {
