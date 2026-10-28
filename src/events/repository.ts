@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { DNSEvent, EventRegistration } from './types';
+import { eventsBridgeEnabled, managedEventCreate, managedEventsList } from './bridge';
 
 function requireDb() {
   if (!db) throw new Error('DNS Polls Firestore not configured');
@@ -21,12 +22,14 @@ export async function getEvent(id: string): Promise<DNSEvent | null> {
 }
 
 export async function listEvents(): Promise<DNSEvent[]> {
+  if (eventsBridgeEnabled) return managedEventsList();
   const result = await getDocs(collection(requireDb(), 'events'));
   return result.docs.map(item => item.data() as DNSEvent)
     .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
 }
 
 export async function createEvent(data: Omit<DNSEvent, 'id' | 'createdAt' | 'schemaVersion'>): Promise<DNSEvent> {
+  if (eventsBridgeEnabled) return managedEventCreate(data);
   const event: DNSEvent = {
     ...data,
     id: crypto.randomUUID(),

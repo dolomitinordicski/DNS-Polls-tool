@@ -1,7 +1,10 @@
 import { getApps, initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
-const DNS_CORE_APP_NAME = 'dns-core-polls';
+// Match Workspace's dns-core Firebase Auth persistence key on the same origin.
+// This does not grant any privileges: the bridge verifies DNS Core server-side.
+const DNS_CORE_APP_NAME = 'dns-digital-pass';
 
 const dnsCoreConfig = {
   apiKey: 'AIzaSyAgxv6Z45-AfrusbFnCSyvYChRUBu6-vXc',
@@ -18,3 +21,5 @@ const dnsCoreApp =
   initializeApp(dnsCoreConfig, DNS_CORE_APP_NAME);
 
 export const dnsCoreDb = getFirestore(dnsCoreApp);
+
+export const dnsCoreAuth = getAuth(dnsCoreApp);
