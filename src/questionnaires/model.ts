@@ -52,3 +52,23 @@ export function newQuestion(id: string): QuestionnaireQuestion {
 export function newQuestionnaire(id: string): QuestionnaireDraft {
   return { id, title: '', description: '', questions: [newQuestion(id + '-q1')] };
 }
+
+/** Create a fully detached copy with new identities. This is still an in-memory draft. */
+export function duplicateQuestionnaire(
+  source: QuestionnaireDraft,
+  newId: () => string,
+  copySuffix: string,
+): QuestionnaireDraft {
+  const suffix = ` (${copySuffix})`;
+  const title = source.title.slice(0, 160 - suffix.length) + suffix;
+  return {
+    id: newId(),
+    title,
+    description: source.description,
+    questions: source.questions.map(question => ({
+      ...question,
+      id: newId(),
+      options: [...question.options],
+    })),
+  };
+}

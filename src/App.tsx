@@ -200,8 +200,12 @@ export default function App() {
       />
 
       <main className="flex-1 pb-14">
-        {!isInviteeLink && currentView === 'questionnaires' && (
-          <QuestionnairesStudio lang={currentLang} />
+        {!isInviteeLink && (
+          // Keep the in-memory workshop mounted when moving between tabs.
+          // Nothing is persisted across reloads or sent to Firestore.
+          <div hidden={currentView !== 'questionnaires'}>
+            <QuestionnairesStudio lang={currentLang} />
+          </div>
         )}
         {import.meta.env.VITE_DNS_EVENTS_ENABLED === 'true' && currentView === 'events' && (
           initialPublicTarget.eventId

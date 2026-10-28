@@ -18,8 +18,11 @@ DNS Polls now has three distinct workflows in navigation:
 
 **Current Questionari status is a client-only UI prototype**, just like the
 unauthenticated Events design workshop. The draft list, form and respondent
-preview live strictly in React state. Reloading the page discards drafts and
-test responses. No questionnaire data is written to Firestore, cookies,
+preview live strictly in React state. Switching between DNS Polls tabs keeps
+these drafts and an unfinished editor in memory; reloading the page discards
+drafts and test responses. Organizers can preview unsaved valid edits, return
+to the editor without losing the work, and duplicate drafts with independent
+question/option objects. No questionnaire data is written to Firestore, cookies,
 localStorage, external APIs or the date-polls collection. The "Simula invio"
 action only validates required fields and displays a local success message.
 It is **not** a real submission, sharing, collection or reporting mechanism.
