@@ -32,7 +32,7 @@ export function EventRegistration({ lang, eventId }: Props) {
     if (!event || event.status !== 'open' || busy) return;
     if (!firstName.trim() || !lastName.trim() || !email.trim() ||
         event.questions.some(q => q.required &&
-          (answers[q.id] === undefined || answers[q.id] === '' || answers[q.id] === false))) {
+          (answers[q.id] === undefined || answers[q.id] === ''))) {
       setError(c.invalid);
       return;
     }
@@ -91,8 +91,15 @@ export function EventRegistration({ lang, eventId }: Props) {
               <label key={q.id} className="block space-y-1">
                 <span className="dns-kicker">{q.label}{q.required ? ' *' : ''}</span>
                 {q.type === 'checkbox' ? (
-                  <input type="checkbox" className="ml-3" checked={answers[q.id] === true}
-                    onChange={e => setAnswers(a => ({ ...a, [q.id]: e.target.checked }))} />
+                  <select className="dns-input w-full" required={q.required}
+                    value={typeof answers[q.id] === 'boolean' ? String(answers[q.id]) : ''}
+                    onChange={e => setAnswers(a => ({
+                      ...a, [q.id]: e.target.value === 'true',
+                    }))}>
+                    <option value="">—</option>
+                    <option value="true">{lang === 'de' ? 'Ja' : 'Sì'}</option>
+                    <option value="false">{lang === 'de' ? 'Nein' : 'No'}</option>
+                  </select>
                 ) : q.type === 'select' ? (
                   <select className="dns-input w-full" required={q.required}
                     value={String(answers[q.id] ?? '')}
