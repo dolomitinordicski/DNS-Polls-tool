@@ -4,7 +4,7 @@ import { getAuth } from 'firebase/auth';
 
 // Match Workspace's dns-core Firebase Auth persistence key on the same origin.
 // This does not grant any privileges: the bridge verifies DNS Core server-side.
-const DNS_CORE_APP_NAME = 'dns-digital-pass';
+const DNS_CORE_APP_NAME = 'dns-core-staff';
 
 const dnsCoreConfig = {
   apiKey: 'AIzaSyAgxv6Z45-AfrusbFnCSyvYChRUBu6-vXc',
