@@ -16,11 +16,10 @@ permissions:
 jobs:
   deploy-rules:
     environment:
-      name: github-pages
+      name: dns-production-auto
     runs-on: ubuntu-latest
     env:
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,31 +32,19 @@ jobs:
       - name: Prepare Firebase credentials
         shell: bash
         run: |
-          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
-            CREDENTIALS_PATH="$RUNNER_TEMP/firebase-service-account.json"
-            printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CREDENTIALS_PATH"
-            echo "GOOGLE_APPLICATION_CREDENTIALS=$CREDENTIALS_PATH" >> "$GITHUB_ENV"
-            echo "auth_mode=service-account" >> "$GITHUB_OUTPUT"
-          elif [ -n "$FIREBASE_TOKEN" ]; then
-            echo "auth_mode=token" >> "$GITHUB_OUTPUT"
-          else
-            echo "::error::No Firebase deploy credential found. Add either FIREBASE_SERVICE_ACCOUNT or FIREBASE_TOKEN as a GitHub Actions secret."
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::Missing FIREBASE_SERVICE_ACCOUNT in dns-production-auto environment."
             exit 1
           fi
+          CREDENTIALS_PATH="$RUNNER_TEMP/firebase-service-account.json"
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$CREDENTIALS_PATH"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$CREDENTIALS_PATH" >> "$GITHUB_ENV"
         id: auth
 
       - name: Deploy Firestore rules
         shell: bash
         run: |
-          if [ "${{ steps.auth.outputs.auth_mode }}" = "token" ]; then
-            npx --yes firebase-tools@15.32.0 deploy \
-              --only firestore:rules \
-              --project dns-polls \
-              --token "$FIREBASE_TOKEN" \
-              --non-interactive
-          else
-            npx --yes firebase-tools@15.32.0 deploy \
-              --only firestore:rules \
-              --project dns-polls \
-              --non-interactive
-          fi
+          npx --yes firebase-tools@15.32.0 deploy \
+            --only firestore:rules \
+            --project dns-polls \
+            --non-interactive
