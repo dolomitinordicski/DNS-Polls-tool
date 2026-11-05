@@ -7,6 +7,9 @@ on:
       - firebase.emulator.json
       - tests/firestore/**
       - .github/workflows/test-event-rules.yml
+      - release/central-rules-contract.json
+      - scripts/verify-central-rules-release.mjs
+      - .github/workflows/polls-central-rules-preflight.yml
   workflow_dispatch:
 
 permissions:

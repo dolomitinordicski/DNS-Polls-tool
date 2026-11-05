@@ -1,0 +1,30 @@
+name: Polls central rules release preflight
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'release/central-rules-contract.json'
+      - 'scripts/verify-central-rules-release.mjs'
+      - 'firestore.rules'
+      - 'firebase.json'
+      - 'firebase.emulator.json'
+      - '.firebaserc'
+      - '.github/workflows/polls-central-rules-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify Polls central release contract (offline)
+        run: |
+          node --check scripts/verify-central-rules-release.mjs
+          node scripts/verify-central-rules-release.mjs

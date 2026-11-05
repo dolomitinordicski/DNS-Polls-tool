@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "repository": "dolomitinordicski/DNS-Polls-tool",
+  "firebaseProject": "dns-polls",
+  "rulesFile": "firestore.rules",
+  "firebaseConfig": "firebase.json",
+  "emulatorConfig": "firebase.emulator.json",
+  "deploymentTarget": "firestore:rules"
+}
