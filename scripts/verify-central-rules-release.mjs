@@ -3,10 +3,6 @@ import { readFileSync } from 'node:fs';
 
 const json = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const contract = json('release/central-rules-contract.json');
-const firebase = json(contract.firebaseConfig);
-const emulator = json(contract.emulatorConfig);
-const projects = json('.firebaserc');
-const rules = readFileSync(contract.rulesFile, 'utf8');
 
 assert.equal(contract.schemaVersion, 1, 'Unexpected central release contract version');
 assert.equal(contract.repository, 'dolomitinordicski/DNS-Polls-tool');
@@ -15,6 +11,11 @@ assert.equal(contract.rulesFile, 'firestore.rules', 'Unexpected rules source');
 assert.equal(contract.firebaseConfig, 'firebase.json');
 assert.equal(contract.emulatorConfig, 'firebase.emulator.json');
 assert.equal(contract.deploymentTarget, 'firestore:rules');
+// Assert the allowlisted paths before using any path supplied by the contract.
+const firebase = json(contract.firebaseConfig);
+const emulator = json(contract.emulatorConfig);
+const projects = json('.firebaserc');
+const rules = readFileSync(contract.rulesFile, 'utf8');
 assert.equal(projects.projects?.default, contract.firebaseProject);
 assert.equal(firebase.firestore?.rules, contract.rulesFile, 'Deploy rules path drift');
 assert.equal(emulator.firestore?.rules, contract.rulesFile, 'Emulator rules path drift');
